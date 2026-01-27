@@ -1,0 +1,25 @@
+import request from './request';
+
+export interface DoubanMedia {
+  id: string;
+  title: string;
+  type: string;
+  rating: number;
+  poster: string;
+  year: string;
+  card_subtitle?: string;
+  genres?: string[];
+  description?: string;
+}
+
+export const getPopular = (type: 'movie' | 'tv' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> => {
+  return request.get('/douban/popular', { params: { type, start, count } });
+};
+
+export const searchDouban = (q: string, start = 0, count = 20): Promise<DoubanMedia[]> => {
+  return request.get('/douban/search', { params: { q, start, count } });
+};
+
+export const getDetail = (type: string, id: string): Promise<DoubanMedia> => {
+  return request.get(`/douban/detail/${type}/${id}`);
+};

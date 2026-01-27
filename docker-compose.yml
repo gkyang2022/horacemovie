@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: horacemovie-backend
+    ports:
+      - "8008:8008"
+    volumes:
+      - ./backend/data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=8008
+      - DB_PATH=./data/horacemovie.db
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: horacemovie-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: always

@@ -146,6 +146,18 @@ const filteredResources = computed(() => {
 });
 
 const getCloudTypeFromResource = (row: any): string => {
+  if (row.type && (row.type === '115' || row.type === 'quark')) {
+    return row.type;
+  }
+  
+  const url = row.url || '';
+  if (url.includes('115.com') || url.includes('anxia.com')) {
+    return '115';
+  }
+  if (url.includes('quark.cn')) {
+    return 'quark';
+  }
+  
   return row.type || '';
 };
 
@@ -183,7 +195,10 @@ const handleSearchResource = async () => {
   resources.value = []; // Clear previous results
   try {
     const data = await searchPansou(detail.value.title);
-    resources.value = data as any;
+    resources.value = (data as any[]).map(item => ({
+      ...item,
+      type: getCloudTypeFromResource(item)
+    }));
     if (data.length === 0) {
       ElMessage.warning('未找到相关网盘资源');
     }

@@ -81,39 +81,177 @@ export class CloudStorageService {
      */
     async saveToQuark(cookie: string, shareUrl: string, targetFolderId: string = '0'): Promise<TransferResult> {
         try {
-            console.log(`[CloudStorageService] Initiating Quark transfer for URL: ${shareUrl}`);
-            // 夸克转存逻辑较为复杂，通常涉及解析 share_id
-            // 这里先写一个示意性的结构，后续根据实际抓包补全
-            // 1. 解析 shareUrl 获取 pwd_id (share_id)
-            const shareIdMatch = shareUrl.match(/s\/([a-zA-Z0-9]+)/);
-            if (!shareIdMatch) {
-                console.warn(`[CloudStorageService] Invalid Quark share URL: ${shareUrl}`);
-                return { success: false, message: '无效的夸克分享链接' };
-            }
-            const shareId = shareIdMatch[1];
+            // 清理 URL，去除末尾可能存在的冒号或其他非法字符
+            const cleanUrl = shareUrl.trim().replace(/:+$/, '');
+            console.log(`[CloudStorageService] Initiating Quark transfer for URL: ${cleanUrl}`);
 
-            // 2. 调用夸克 API (示例接口)
-            // POST https://pan.quark.cn/1/clouddrive/share/save
-            const response = await axios.post('https://pan.quark.cn/1/clouddrive/share/save', {
-                fid_list: [], // 如果是转存整个分享，通常有特定标识
-                share_id: shareId,
-                to_p_id: targetFolderId
-            }, {
-                headers: {
-                    'Cookie': cookie,
-                    'Content-Type': 'application/json'
-                },
-                timeout: 10000
+            // 1. 解析 shareId 和 passCode
+            const shareIdMatch = cleanUrl.match(/\/s\/([a-zA-Z0-9]+)/);
+            const shareId = shareIdMatch ? shareIdMatch[1] : '';
+            const passCodeMatch = cleanUrl.match(/[?&](pwd|code)=([a-zA-Z0-9]+)/);
+            const passCode = passCodeMatch ? passCodeMatch[2] : '';
+
+            if (!shareId) {
+                console.warn(`[CloudStorageService] Invalid Quark share URL: ${cleanUrl}`);
+                return { success: false, message: '解析夸克分享 ID 失败' };
+            }
+
+            if (!cookie || cookie.trim() === '') {
+                console.warn(`[CloudStorageService] Quark cookie is missing.`);
+                return { success: false, message: '夸克 Cookie 未配置，请在设置中添加' };
+            }
+
+            // 统一的请求头生成函数
+            const getHeaders = (apiDomain: string) => ({
+                'Cookie': cookie,
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
+                'Origin': 'https://pan.quark.cn',
+                'Referer': `https://pan.quark.cn/s/${shareId}`,
+                'Sec-Ch-Ua': '"Microsoft Edge";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+                'Sec-Ch-Ua-Mobile': '?0',
+                'Sec-Ch-Ua-Platform': '"Windows"',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-site',
+                'Priority': 'u=1, i'
             });
 
-            if (response.data && response.data.code === 0) {
-                console.log(`[CloudStorageService] Quark transfer successful for shareId: ${shareId}`);
-                return { success: true, message: '夸克转存成功' };
+            const domain = 'https://drive-h.quark.cn';
+            const backupDomain = 'https://pan.quark.cn';
+            const commonParams = `pr=ucpro&fr=pc&uc_param_str=&__t=${Date.now()}`;
+
+            // 2. 获取 stoken (sharepage/token)
+            let stoken = '';
+            let fetchTokenError = '';
+            
+            const tryFetchToken = async (targetDomain: string) => {
+                console.log(`[CloudStorageService] Step 1: Fetching Quark stoken from ${targetDomain}`);
+                const tokenRes = await axios.post(`${targetDomain}/1/clouddrive/share/sharepage/token?${commonParams}&__dt=994`, {
+                    pwd_id: shareId,
+                    passcode: passCode
+                }, {
+                    headers: getHeaders(targetDomain),
+                    timeout: 5000
+                });
+
+                if (tokenRes.data && tokenRes.data.status === 200 && tokenRes.data.data) {
+                    return tokenRes.data.data.stoken;
+                } else {
+                    throw new Error(tokenRes.data?.message || '获取 token 失败');
+                }
+            };
+
+            try {
+                stoken = await tryFetchToken(domain);
+            } catch (e: any) {
+                console.warn(`[CloudStorageService] Primary domain failed for token: ${e.message}. Trying backup...`);
+                try {
+                    stoken = await tryFetchToken(backupDomain);
+                } catch (e2: any) {
+                    fetchTokenError = e2.message;
+                    console.error(`[CloudStorageService] Backup domain also failed for token: ${e2.message}`);
+                }
             }
-            console.warn(`[CloudStorageService] Quark transfer failed for ${shareId}: ${response.data.message || 'Unknown error'}`);
-            return { success: false, message: response.data.message || '夸克转存失败' };
-        } catch (error: any) {
+
+            if (!stoken) {
+                return { success: false, message: `获取夸克分享 Token 失败: ${fetchTokenError || '可能是提取码错误或 Cookie 失效'}` };
+            }
+
+            // 3. 获取分享详情 (sharepage/detail)
+            let detailData: any = null;
+            let fetchDetailError = '';
+
+            const tryFetchDetail = async (targetDomain: string) => {
+                console.log(`[CloudStorageService] Step 2: Fetching Quark details from ${targetDomain}`);
+                const detailRes = await axios.get(`${targetDomain}/1/clouddrive/share/sharepage/detail?${commonParams}&stoken=${stoken}&pwd_id=${shareId}&_pdir_fid=0`, {
+                    headers: getHeaders(targetDomain),
+                    timeout: 5000
+                });
+
+                if (detailRes.data && detailRes.data.status === 200 && detailRes.data.data) {
+                    return detailRes.data.data;
+                } else {
+                    throw new Error(detailRes.data?.message || '获取分享详情失败');
+                }
+            };
+
+            try {
+                detailData = await tryFetchDetail(domain);
+            } catch (e: any) {
+                console.warn(`[CloudStorageService] Primary domain failed for detail: ${e.message}. Trying backup...`);
+                try {
+                    detailData = await tryFetchDetail(backupDomain);
+                } catch (e2: any) {
+                    fetchDetailError = e2.message;
+                    console.error(`[CloudStorageService] Backup domain also failed for detail: ${e2.message}`);
+                }
+            }
+
+            if (!detailData) {
+                return { success: false, message: `获取夸克分享详情失败: ${fetchDetailError || '未知错误'}` };
+            }
+
+            const fidList = detailData.list?.map((item: any) => item.fid) || [];
+            const fidTokenList = detailData.list?.map((item: any) => item.share_fid_token) || [];
+
+            if (fidList.length === 0) {
+                return { success: false, message: '未找到可转存的文件' };
+            }
+
+            // 4. 执行转存 (sharepage/save)
+            const saveParams = {
+                fid_list: fidList,
+                fid_token_list: fidTokenList,
+                to_pdir_fid: targetFolderId,
+                pwd_id: shareId,
+                stoken: stoken,
+                pdir_fid: '0',
+                scene: 'link'
+            };
+
+            const trySave = async (targetDomain: string) => {
+                console.log(`[CloudStorageService] Step 3: Executing Quark save via ${targetDomain}`);
+                return await axios.post(`${targetDomain}/1/clouddrive/share/sharepage/save?${commonParams}`, saveParams, {
+                    headers: getHeaders(targetDomain),
+                    timeout: 10000
+                });
+            };
+
+            try {
+                let response;
+                try {
+                    response = await trySave(domain);
+                } catch (e: any) {
+                    console.warn(`[CloudStorageService] Primary domain failed for save: ${e.message}. Trying backup...`);
+                    response = await trySave(backupDomain);
+                }
+
+                if (response.data && (response.data.status === 200 || response.data.code === 0)) {
+                    console.log(`[CloudStorageService] Quark transfer successful for shareId: ${shareId}`);
+                    return { success: true, message: '夸克转存成功' };
+                }
+                
+                const errorMsg = response.data?.message || '夸克转存失败';
+                if (response.data?.status === 401 || response.data?.code === 31001) {
+                    return { success: false, message: '夸克登录失效，请更新 Cookie' };
+                }
+                return { success: false, message: errorMsg };
+            } catch (e: any) {
+                console.error(`[CloudStorageService] Quark save failed: ${e.message}`);
+                if (e.response?.status === 401) {
+                    return { success: false, message: '夸克登录失效，请重新设置 Cookie' };
+                }
+                return { success: false, message: `转存失败: ${e.message}` };
+            }
+            } catch (error: any) {
             console.error(`[CloudStorageService] Quark transfer exception for ${shareUrl}:`, error.message);
+            if (error.response) {
+                console.error(`[CloudStorageService] Error Response Data:`, JSON.stringify(error.response.data));
+                return { success: false, message: `夸克转存失败 (${error.response.status}): ${error.response.data?.message || error.message}` };
+            }
             return { success: false, message: `夸克转存异常: ${error.message}` };
         }
     }

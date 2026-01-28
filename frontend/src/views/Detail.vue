@@ -7,17 +7,57 @@
       <div class="right">
         <h1 class="title">{{ detail.title }} <span class="year">({{ detail.year }})</span></h1>
         <div class="meta">
-          <el-rate 
-            :model-value="detail.rating / 2" 
-            :max="5" 
-            disabled 
-            show-score 
-            score-template="{value}" 
-            :colors="['#99A9BF', '#F7BA2A', '#FF9900']"
-          />
-          <span class="score-text">{{ detail.rating }} 分</span>
-          <div class="genres">
-            <el-tag v-for="g in detail.genres" :key="g" size="small">{{ g }}</el-tag>
+          <div class="rating-info">
+            <el-rate 
+              :model-value="detail.rating / 2" 
+              :max="5" 
+              disabled 
+              score-template="{value}" 
+              :colors="['#99A9BF', '#F7BA2A', '#FF9900']"
+            />
+            <span class="score-text">{{ detail.rating }} 分</span>
+            <span class="rating-count" v-if="detail.rating_count">({{ detail.rating_count }}人评价)</span>
+          </div>
+          
+          <div class="info-list">
+            <div v-if="detail.directors?.length" class="info-item">
+              <span class="label">导演:</span>
+              <span class="value">{{ detail.directors.join(' / ') }}</span>
+            </div>
+            <div v-if="detail.actors?.length" class="info-item">
+              <span class="label">主演:</span>
+              <span class="value">{{ detail.actors.slice(0, 10).join(' / ') }}</span>
+            </div>
+            <div v-if="detail.genres?.length" class="info-item">
+              <span class="label">类型:</span>
+              <span class="value">
+                <el-tag v-for="g in detail.genres" :key="g" size="small" class="genre-tag">{{ g }}</el-tag>
+              </span>
+            </div>
+            <div v-if="detail.countries?.length" class="info-item">
+              <span class="label">地区:</span>
+              <span class="value">{{ detail.countries.join(' / ') }}</span>
+            </div>
+            <div v-if="detail.languages?.length" class="info-item">
+              <span class="label">语言:</span>
+              <span class="value">{{ detail.languages.join(' / ') }}</span>
+            </div>
+            <div v-if="detail.pubdate?.length" class="info-item">
+              <span class="label">上映:</span>
+              <span class="value">{{ detail.pubdate.join(' / ') }}</span>
+            </div>
+            <div v-if="detail.durations?.length" class="info-item">
+              <span class="label">片长:</span>
+              <span class="value">{{ detail.durations.join(' / ') }}</span>
+            </div>
+            <div v-if="detail.episodes_count && detail.episodes_count > 0" class="info-item">
+              <span class="label">集数:</span>
+              <span class="value">{{ detail.episodes_count }}</span>
+            </div>
+            <div v-if="detail.url" class="info-item">
+              <span class="label">豆瓣:</span>
+              <el-link :href="detail.url" target="_blank" type="primary" :underline="false">查看原链接</el-link>
+            </div>
           </div>
         </div>
         <div class="intro">
@@ -154,63 +194,107 @@ onMounted(() => {
   height: 450px;
   border-radius: 4px;
   object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .right {
   flex-grow: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .title {
-  margin: 0 0 20px 0;
+  margin: 0 0 15px 0;
   font-size: 28px;
+  color: #303133;
 }
 
 .year {
-  color: #999;
+  color: #909399;
   font-weight: normal;
   font-size: 20px;
 }
 
 .meta {
+  margin-bottom: 25px;
+}
+
+.rating-info {
   display: flex;
   align-items: center;
-  gap: 15px;
-  margin-bottom: 30px;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .score-text {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: bold;
   color: #ff9900;
 }
 
-/* Ensure el-rate icons are visible */
-:deep(.el-rate__icon) {
-  font-size: 20px;
-  margin-right: 4px;
+.rating-count {
+  font-size: 13px;
+  color: #909399;
 }
 
-.genres {
+.info-list {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.info-item {
+  display: flex;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.label {
+  color: #909399;
+  width: 50px;
+  flex-shrink: 0;
+}
+
+.value {
+  color: #303133;
+  flex-grow: 1;
+}
+
+.genre-tag {
+  margin-right: 6px;
+  margin-bottom: 4px;
+}
+
+:deep(.el-rate__icon) {
+  font-size: 22px;
+  margin-right: 2px;
 }
 
 .intro {
-  margin-bottom: 40px;
+  margin: 20px 0 30px 0;
+  border-top: 1px solid #ebeef5;
+  padding-top: 20px;
 }
 
 .intro h3 {
-  margin-bottom: 15px;
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  color: #303133;
 }
 
 .intro p {
-  line-height: 1.6;
-  color: #666;
+  line-height: 1.8;
+  color: #606266;
+  font-size: 14px;
+  margin: 0;
+  white-space: pre-wrap;
 }
 
 .actions {
   display: flex;
   gap: 15px;
+  margin-top: auto;
+  padding-top: 20px;
 }
 
 .resource-link {

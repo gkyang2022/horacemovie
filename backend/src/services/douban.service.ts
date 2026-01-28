@@ -16,6 +16,15 @@ export interface DoubanMedia {
     card_subtitle?: string;
     genres?: string[];
     description?: string;
+    rating_count?: number;
+    pubdate?: string[];
+    languages?: string[];
+    countries?: string[];
+    directors?: string[];
+    actors?: string[];
+    durations?: string[];
+    url?: string;
+    episodes_count?: number;
 }
 
 export class DoubanService {
@@ -178,15 +187,25 @@ export class DoubanService {
 
             const item = response.data;
             console.log(`[DoubanService] Successfully fetched detail for: ${item.title}`);
+            
             return {
                 id: item.id,
                 title: item.title,
                 type: type,
                 rating: item.rating ? item.rating.value : 0,
+                rating_count: item.rating ? item.rating.count : 0,
                 poster: this.getProxyPoster(item.cover_url || item.cover?.url || item.pic?.normal),
                 year: item.year || '',
                 genres: item.genres || [],
-                description: item.intro || item.description || ''
+                description: item.intro || item.description || '',
+                pubdate: item.pubdate || [],
+                languages: item.languages || [],
+                countries: item.countries || [],
+                directors: (item.directors || []).map((d: any) => d.name),
+                actors: (item.actors || []).map((a: any) => a.name),
+                durations: item.durations || [],
+                url: item.url || `https://movie.douban.com/subject/${item.id}/`,
+                episodes_count: item.episodes_count || 0
             };
         } catch (error: any) {
             console.error(`[DoubanService] Error fetching detail for ${id}:`, error.response?.data || error.message);

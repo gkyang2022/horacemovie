@@ -10,6 +10,15 @@ export interface DoubanMedia {
   card_subtitle?: string;
   genres?: string[];
   description?: string;
+  rating_count?: number;
+  pubdate?: string[];
+  languages?: string[];
+  countries?: string[];
+  directors?: string[];
+  actors?: string[];
+  durations?: string[];
+  url?: string;
+  episodes_count?: number;
 }
 
 export const getPopular = (type: 'movie' | 'tv' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> => {

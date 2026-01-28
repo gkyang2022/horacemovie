@@ -1,119 +1,235 @@
 <template>
   <div class="home">
-    <el-tabs v-model="activeType" @tab-change="handleTabChange">
-      <el-tab-pane label="热门电影" name="movie"></el-tab-pane>
-      <el-tab-pane label="热门电视剧" name="tv"></el-tab-pane>
-    </el-tabs>
-
-    <div v-loading="loading" class="media-grid">
-      <el-card 
-        v-for="item in list" 
-        :key="item.id" 
-        class="media-card" 
-        :body-style="{ padding: '0px' }"
-        @click="goToDetail(item)"
-      >
-        <div class="poster-wrapper">
-          <el-image :src="item.poster" fit="cover" class="poster">
-            <template #placeholder>
-              <div class="image-slot">加载中...</div>
-            </template>
-            <template #error>
-              <div class="image-slot">无海报</div>
-            </template>
-          </el-image>
-          <div class="rating">{{ item.rating }}</div>
+    <div v-for="section in sections" :key="section.type" class="section">
+      <div class="section-header">
+        <h2 class="section-title">{{ section.title }}</h2>
+      </div>
+      
+      <div class="media-row-container" v-loading="loading[section.type]">
+        <div class="media-row">
+          <div 
+            v-for="item in data[section.type]" 
+            :key="item.id" 
+            class="media-card-mini" 
+            @click="goToDetail(item, section.type)"
+          >
+            <div class="poster-wrapper">
+              <el-image :src="item.poster" fit="cover" class="poster" loading="lazy">
+                <template #placeholder>
+                  <div class="image-slot">加载中...</div>
+                </template>
+                <template #error>
+                  <div class="image-slot">无海报</div>
+                </template>
+              </el-image>
+              <div class="rating">{{ item.rating }}</div>
+            </div>
+            <div class="info">
+              <div class="title" :title="item.title">{{ item.title }}</div>
+              <div class="subtitle" :title="item.card_subtitle || item.year">
+                {{ item.card_subtitle || item.year }}
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="info">
-          <div class="title">{{ item.title }}</div>
-          <div class="subtitle">{{ item.card_subtitle || item.year }}</div>
-        </div>
-      </el-card>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { getPopular, type DoubanMedia } from '../api/douban';
 
 const router = useRouter();
-const activeType = ref<'movie' | 'tv'>('movie');
-const list = ref<DoubanMedia[]>([]);
-const loading = ref(false);
 
-const fetchData = async () => {
-  loading.value = true;
+type Category = 'movie' | 'tv' | 'variety' | 'animation';
+
+interface Section {
+  title: string;
+  type: Category;
+}
+
+const sections: Section[] = [
+  { title: '热门电影', type: 'movie' },
+  { title: '热门电视剧', type: 'tv' },
+  { title: '热门综艺', type: 'variety' },
+  { title: '热门动画', type: 'animation' },
+];
+
+const data = reactive<Record<Category, DoubanMedia[]>>({
+  movie: [],
+  tv: [],
+  variety: [],
+  animation: [],
+});
+
+const loading = reactive<Record<Category, boolean>>({
+  movie: false,
+  tv: false,
+  variety: false,
+  animation: false,
+});
+
+const fetchSectionData = async (type: Category) => {
+  loading[type] = true;
   try {
-    list.value = await getPopular(activeType.value);
+    data[type] = await getPopular(type, 0, 18);
+  } catch (error) {
+    console.error(`Failed to fetch ${type}:`, error);
   } finally {
-    loading.value = false;
+    loading[type] = false;
   }
 };
 
-const handleTabChange = () => {
-  fetchData();
-};
-
-const goToDetail = (item: DoubanMedia) => {
-  router.push(`/detail/${item.type || activeType.value}/${item.id}`);
+const goToDetail = (item: DoubanMedia, defaultType: string) => {
+  router.push(`/detail/${item.type || defaultType}/${item.id}`);
 };
 
 onMounted(() => {
-  fetchData();
+  sections.forEach(s => fetchSectionData(s.type));
 });
 </script>
 
 <style scoped>
-.media-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 20px;
-  padding: 20px 0;
+.home {
+  padding: 10px 0;
+  max-width: 1400px;
+  margin: 0 auto;
 }
-.media-card {
-  cursor: pointer;
-  transition: transform 0.3s;
+
+.section {
+  margin-bottom: 0px;
 }
-.media-card:hover {
-  transform: translateY(-5px);
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  margin-bottom: 15px;
 }
-.poster-wrapper {
+
+.section-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #303133;
   position: relative;
-  aspect-ratio: 2/3;
+  padding-left: 15px;
+}
+
+.section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 20px;
+  background: #409eff;
+  border-radius: 2px;
+}
+
+.media-row-container {
+  width: 100%;
   overflow: hidden;
 }
+
+.media-row {
+  display: flex;
+  overflow-x: auto;
+  gap: 20px;
+  padding: 5px 20px 15px 20px;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: #dcdfe6 transparent;
+}
+
+/* Custom scrollbar for webkit */
+.media-row::-webkit-scrollbar {
+  height: 6px;
+}
+
+.media-row::-webkit-scrollbar-thumb {
+  background-color: #dcdfe6;
+  border-radius: 3px;
+}
+
+.media-row::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.media-card-mini {
+  flex: 0 0 200px;
+  width: 200px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.media-card-mini:hover {
+  transform: translateY(-8px);
+}
+
+.media-card-mini:hover .poster {
+  filter: brightness(0.8);
+}
+
+.poster-wrapper {
+  position: relative;
+  width: 200px;
+  height: 300px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
 .poster {
   width: 100%;
   height: 100%;
+  transition: transform 0.5s ease;
 }
+
+.media-card-mini:hover .poster {
+  transform: scale(1.05);
+}
+
 .rating {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  background: rgba(0, 0, 0, 0.7);
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
   color: #ff9900;
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: bold;
 }
+
 .info {
-  padding: 10px;
+  margin-top: 10px;
 }
+
 .title {
-  font-size: 14px;
-  font-weight: bold;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.4;
 }
+
 .subtitle {
-  font-size: 12px;
+  font-size: 13px;
   color: #909399;
   margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
 }
+
 .image-slot {
   display: flex;
   justify-content: center;

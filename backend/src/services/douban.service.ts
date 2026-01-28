@@ -65,10 +65,17 @@ export class DoubanService {
         return processedUrl.replace(/([^:])\/\//g, '$1/');
     }
 
-    async getPopular(type: 'movie' | 'tv' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> {
+    async getPopular(type: 'movie' | 'tv' | 'variety' | 'animation' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> {
         try {
             console.log(`[DoubanService] Fetching popular ${type}s (start: ${start}, count: ${count})`);
-            const collectionId = type === 'movie' ? 'movie_hot_gaia' : 'tv_hot';
+            let collectionId = 'movie_hot_gaia';
+            switch (type) {
+                case 'tv': collectionId = 'tv_hot'; break;
+                case 'variety': collectionId = 'tv_variety_show'; break;
+                case 'animation': collectionId = 'tv_animation'; break;
+                default: collectionId = 'movie_hot_gaia';
+            }
+            
             const url = `${DOUBAN_API_HOST}/subject_collection/${collectionId}/items`;
             const response = await axios.get(url, {
                 params: {

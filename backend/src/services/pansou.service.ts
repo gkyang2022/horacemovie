@@ -7,6 +7,7 @@ export interface SearchResource {
     size?: string;
     source: string;
     time?: string;
+    type: string; // Added cloud type (115, quark, etc.)
 }
 
 export class PansouService {
@@ -45,7 +46,7 @@ export class PansouService {
             // Adding cloud_types to filter for specific cloud providers.
             const response = await axios.post(apiUrl, {
                 kw: keyword,
-                cloud_types: ['115', 'quark', 'aliyun', 'baidu', 'uc', 'pikpak'] // Added requested cloud_types
+                cloud_types: ['115', 'quark'] // Only 115 and Quark as requested
             }, {
                 headers: {
                     'Content-Type': 'application/json'
@@ -55,40 +56,49 @@ export class PansouService {
 
             console.log(`[PansouService] Response status: ${response.status}`);
             
-            let items: any[] = [];
+            let items: SearchResource[] = [];
             const respBody = response.data;
 
             // Handle fish2018/pansou response structure: { code: 0, message: 'success', data: { merged_by_type: { ... } } }
+            if (respBody && typeof respBody.code !== 'undefined' && respBody.code !== 0) {
+                throw new Error(respBody.message || 'API 返回错误');
+            }
+
             if (respBody && respBody.data) {
                 const data = respBody.data;
                 if (data.merged_by_type && typeof data.merged_by_type === 'object') {
-                    // Flatten the object: { "115": [], "aliyun": [] } -> []
-                    Object.values(data.merged_by_type).forEach((val: any) => {
-                        if (Array.isArray(val)) items.push(...val);
+                    // Flatten the object: { "115": [], "quark": [] } -> [] with type preserved
+                    Object.entries(data.merged_by_type).forEach(([type, val]: [string, any]) => {
+                        if (Array.isArray(val)) {
+                            const mapped = val.map((item: any) => ({
+                                name: item.title || item.name || item.note || '未知文件名',
+                                url: item.link || item.url || '',
+                                size: item.size || '未知',
+                                source: item.sitename || item.source || item.from || '未知',
+                                time: item.time || item.date || item.datetime || '',
+                                type: type // Preserve the cloud type from the key
+                            }));
+                            items.push(...mapped);
+                        }
                     });
                 } else if (Array.isArray(data.results)) {
-                    items = data.results;
-                } else if (Array.isArray(data)) {
-                    items = data;
+                    items = data.results.map((item: any) => ({
+                        name: item.title || item.name || item.note || '未知文件名',
+                        url: item.link || item.url || '',
+                        size: item.size || '未知',
+                        source: item.sitename || item.source || item.from || '未知',
+                        time: item.time || item.date || item.datetime || '',
+                        type: 'unknown'
+                    }));
                 }
-            } else if (Array.isArray(respBody)) {
-                items = respBody;
-            } else if (respBody && respBody.results) {
-                items = Array.isArray(respBody.results) ? respBody.results : Object.values(respBody.results).flat();
             }
 
             console.log(`[PansouService] Successfully parsed ${items.length} items for "${keyword}"`);
-
-            return items.map((item: any) => ({
-                name: item.title || item.name || item.note || '未知文件名',
-                url: item.link || item.url || '',
-                size: item.size || '未知',
-                source: item.sitename || item.source || item.from || '未知',
-                time: item.time || item.date || item.datetime || ''
-            }));
+            return items;
         } catch (error: any) {
-            console.error(`[PansouService] Search error for "${keyword}":`, error.response?.data || error.message);
-            return [];
+            const errorDetail = error.response?.data?.message || error.response?.data?.error || error.message;
+            console.error(`[PansouService] Search error for "${keyword}":`, errorDetail);
+            throw new Error(`盘搜 API 查询失败: ${errorDetail}`);
         }
     }
 }

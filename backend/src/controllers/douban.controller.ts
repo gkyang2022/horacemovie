@@ -4,10 +4,11 @@ import { DoubanService } from '../services/douban.service.js';
 const doubanService = DoubanService.getInstance();
 
 export const getPopular = async (req: Request, res: Response) => {
-    const type = (req.query.type as 'movie' | 'tv') || 'movie';
+    const type = (req.query.type as 'movie' | 'tv' | 'variety' | 'animation') || 'movie';
     const start = parseInt(req.query.start as string) || 0;
     const count = parseInt(req.query.count as string) || 20;
 
+    console.log(`[DoubanController] GET /api/douban/popular?type=${type}&start=${start}&count=${count}`);
     const result = await doubanService.getPopular(type, start, count);
     res.json(result);
 };

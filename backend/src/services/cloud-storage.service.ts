@@ -20,35 +20,57 @@ export class CloudStorageService {
     }
 
     /**
-     * 115网盘转存逻辑
-     * 参考: 115转存通常需要 cid (目录ID), pick_code 或 离线下载接口
+     * 115网盘转存逻辑 (分享转存)
+     * 115 分享链接转存通常需要从 URL 中提取 share_code，然后调用 share/receive 接口
      */
     async saveTo115(cookie: string, shareUrl: string, targetFolderId: string = '0'): Promise<TransferResult> {
         try {
-            console.log(`[CloudStorageService] Initiating 115 transfer for URL: ${shareUrl}`);
-            // 这里通常是调用115的离线下载接口
-            // 接口: https://115.com/web/lixian/?ct=lixian&ac=add_task_url
-            // 需要处理 cookie 和 payload
-            const response = await axios.post('https://115.com/web/lixian/?ct=lixian&ac=add_task_url', 
-                `url=${encodeURIComponent(shareUrl)}&wp_path_id=${targetFolderId}`,
+            console.log(`[CloudStorageService] Initiating 115 share receive for URL: ${shareUrl}`);
+            
+            // 1. 从分享链接中提取 share_code
+            // 常见的 115 分享链接格式: https://115.com/s/sw35vv73xw3?password=xxxx
+            const shareCodeMatch = shareUrl.match(/\/s\/([a-zA-Z0-9]+)/);
+            if (!shareCodeMatch) {
+                console.warn(`[CloudStorageService] Could not extract share_code from 115 URL: ${shareUrl}`);
+                return { success: false, message: '无法从链接中提取分享码' };
+            }
+            const shareCode = shareCodeMatch[1];
+
+            // 2. 提取提取码 (如果有)
+            // 修改正则以支持冒号等特殊字符，提取 password= 之后到 & 之前或结尾的内容
+            const passwordMatch = shareUrl.match(/password=([^&]+)/);
+            const receiveCode = passwordMatch ? passwordMatch[1] : '';
+
+            // 3. 获取域名用于 Header
+            const urlObj = new URL(shareUrl);
+            const domain = urlObj.origin;
+
+            // 4. 调用 115 分享接收接口 (Share Receive)
+            // 使用 webapi.115.com 接口通常比直接使用 115.com 更稳定，避免 404
+            const response = await axios.post('https://webapi.115.com/share/receive', 
+                `share_code=${shareCode}&receive_code=${receiveCode}&cid=${targetFolderId}`,
                 {
                     headers: {
                         'Cookie': cookie,
                         'Content-Type': 'application/x-www-form-urlencoded',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
+                        'Origin': domain,
+                        'Referer': shareUrl
                     },
                     timeout: 10000
                 }
             );
 
-            if (response.data && response.data.state) {
-                console.log(`[CloudStorageService] 115 transfer task submitted successfully for: ${shareUrl}`);
-                return { success: true, message: '115 转存任务已提交', data: response.data };
+            if (response.data && response.data.state === true) {
+                console.log(`[CloudStorageService] 115 share receive successful for: ${shareCode}`);
+                return { success: true, message: '115 分享转存成功', data: response.data };
             }
-            console.warn(`[CloudStorageService] 115 transfer failed for ${shareUrl}: ${response.data.error_msg || 'Unknown error'}`);
-            return { success: false, message: response.data.error_msg || '115 转存失败' };
+
+            const errorMsg = response.data?.error_msg || response.data?.msg || 'Unknown error';
+            console.warn(`[CloudStorageService] 115 share receive failed for ${shareCode}: ${errorMsg}`);
+            return { success: false, message: `115 转存失败: ${errorMsg}` };
         } catch (error: any) {
-            console.error(`[CloudStorageService] 115 transfer exception for ${shareUrl}:`, error.message);
+            console.error(`[CloudStorageService] 115 share receive exception for ${shareUrl}:`, error.message);
             return { success: false, message: `115 转存异常: ${error.message}` };
         }
     }

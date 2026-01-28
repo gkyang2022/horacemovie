@@ -72,37 +72,46 @@
     </div>
 
     <!-- Resource Search Results -->
-    <el-dialog v-model="resourceDialog" title="资源搜索结果" width="80%">
-      <el-table :data="resources" v-loading="searchLoading">
-        <el-table-column property="name" label="文件名" min-width="200" />
-        <el-table-column property="time" label="发布时间" width="160" />
-        <el-table-column property="url" label="链接" min-width="200">
-          <template #default="scope">
-            <el-link type="primary" :href="scope.row.url" target="_blank" class="resource-link">
-              {{ scope.row.url }}
-            </el-link>
-          </template>
-        </el-table-column>
-        <el-table-column property="source" label="来源" width="100" />
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="scope">
-            <el-dropdown split-button type="primary" size="small" @click="handleSave(scope.row, '115')">
-              转存到 115
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="handleSave(scope.row, 'quark')">转存到 夸克</el-dropdown-item>
-                </el-dropdown-menu>
+    <el-dialog v-model="resourceDialog" title="资源搜索结果" width="85%" class="resource-dialog">
+      <el-tabs v-model="activeTab" class="resource-tabs">
+        <el-tab-pane v-for="tab in resourceTabsWithCounts" :key="tab.key" :label="tab.label" :name="tab.key">
+          <el-table :data="filteredResources" v-loading="searchLoading" height="500">
+            <el-table-column property="name" label="文件名" min-width="250" show-overflow-tooltip />
+            <el-table-column property="time" label="发布日期" width="120">
+              <template #default="scope">
+                {{ formatDate(scope.row.time) }}
               </template>
-            </el-dropdown>
-          </template>
-        </el-table-column>
-      </el-table>
+            </el-table-column>
+            <el-table-column property="url" label="链接" min-width="200">
+              <template #default="scope">
+                <el-link type="primary" :href="scope.row.url" target="_blank" class="resource-link">
+                  {{ scope.row.url }}
+                </el-link>
+              </template>
+            </el-table-column>
+            <el-table-column property="source" label="来源" width="120" />
+            <el-table-column label="操作" width="120" fixed="right">
+              <template #default="scope">
+                <el-button 
+                  v-if="canSave(scope.row)"
+                  type="primary" 
+                  size="small" 
+                  @click="handleSave(scope.row)"
+                >
+                  转存到{{ getSaveTargetName(scope.row) }}
+                </el-button>
+                <span v-else class="text-gray">不支持转存</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+      </el-tabs>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { getDetail, type DoubanMedia } from '../api/douban';
 import { searchPansou, saveToCloud } from '../api/system';
@@ -115,6 +124,47 @@ const loading = ref(false);
 const resourceDialog = ref(false);
 const searchLoading = ref(false);
 const resources = ref<any[]>([]);
+const activeTab = ref('115');
+
+const resourceTabs = [
+  { label: '115网盘', key: '115' },
+  { label: '夸克网盘', key: 'quark' }
+];
+
+const resourceTabsWithCounts = computed(() => {
+  return resourceTabs.map(tab => {
+    const count = resources.value.filter(r => r.type === tab.key).length;
+    return {
+      ...tab,
+      label: `${tab.label} (${count})`
+    };
+  });
+});
+
+const filteredResources = computed(() => {
+  return resources.value.filter(r => r.type === activeTab.value);
+});
+
+const getCloudTypeFromResource = (row: any): string => {
+  return row.type || '';
+};
+
+const formatDate = (timeStr: string) => {
+  if (!timeStr) return '-';
+  // Extract YYYY-MM-DD using regex or simple split
+  const match = timeStr.match(/\d{4}-\d{2}-\d{2}/);
+  return match ? match[0] : timeStr;
+};
+
+const canSave = (row: any) => {
+  const type = getCloudTypeFromResource(row);
+  return type === '115' || type === 'quark';
+};
+
+const getSaveTargetName = (row: any) => {
+  const type = getCloudTypeFromResource(row);
+  return type === '115' ? '115' : '夸克';
+};
 
 const fetchData = async () => {
   const { id, type } = route.params;
@@ -130,12 +180,18 @@ const handleSearchResource = async () => {
   if (!detail.value) return;
   resourceDialog.value = true;
   searchLoading.value = true;
+  resources.value = []; // Clear previous results
   try {
     const data = await searchPansou(detail.value.title);
     resources.value = data as any;
     if (data.length === 0) {
       ElMessage.warning('未找到相关网盘资源');
     }
+  } catch (error) {
+    console.error('Pansou search failed:', error);
+    // Error is already shown by request interceptor, 
+    // we just need to make sure the UI reflects the failure
+    resourceDialog.value = false; // Close dialog on error to avoid showing empty state
   } finally {
     searchLoading.value = false;
   }
@@ -151,7 +207,10 @@ const handleTrack = () => {
   });
 };
 
-const handleSave = async (row: any, type: string) => {
+const handleSave = async (row: any) => {
+  const type = getCloudTypeFromResource(row);
+  if (!type) return;
+  
   try {
     const res = await saveToCloud({
       shareUrl: row.url,
@@ -300,5 +359,18 @@ onMounted(() => {
 .resource-link {
   word-break: break-all;
   font-size: 12px;
+}
+
+.resource-tabs {
+  margin-top: -10px;
+}
+
+.text-gray {
+  color: #909399;
+  font-size: 12px;
+}
+
+:deep(.resource-dialog .el-dialog__body) {
+  padding-top: 10px;
 }
 </style>

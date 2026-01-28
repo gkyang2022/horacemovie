@@ -10,18 +10,29 @@ export const transferAndSync = async (req: Request, res: Response) => {
     const { shareUrl, type, mediaName } = req.body; // type: '115' or 'quark'
     const db = getDb();
 
-    // 1. 获取网盘 Cookie
-    const account = await db.get('SELECT cookie FROM cloud_accounts WHERE type = ? ORDER BY updated_at DESC LIMIT 1', type);
-    if (!account) {
-        return res.status(400).json({ error: `未配置 ${type} 网盘账号` });
-    }
-
     try {
+        // 1. 获取网盘 Cookie 和 目标文件夹 ID
+        const cookieKey = type === '115' ? 'cookie_115' : 'cookie_quark';
+        const folderKey = type === '115' ? 'folder_id_115' : 'folder_id_quark';
+        
+        const settingsRows = await db.all('SELECT key, value FROM settings WHERE key IN (?, ?)', [cookieKey, folderKey]);
+        const settings: any = {};
+        settingsRows.forEach(row => {
+            settings[row.key] = row.value;
+        });
+
+        const cookie = settings[cookieKey];
+        const targetFolderId = settings[folderKey] || '0';
+
+        if (!cookie) {
+            return res.status(400).json({ error: `未配置 ${type} 网盘 Cookie` });
+        }
+
         let result;
         if (type === '115') {
-            result = await cloudService.saveTo115(account.cookie, shareUrl);
+            result = await cloudService.saveTo115(cookie, shareUrl, targetFolderId);
         } else {
-            result = await cloudService.saveToQuark(account.cookie, shareUrl);
+            result = await cloudService.saveToQuark(cookie, shareUrl, targetFolderId);
         }
 
         if (result.success) {
@@ -31,9 +42,6 @@ export const transferAndSync = async (req: Request, res: Response) => {
                 mediaName, shareUrl, 'transferred'
             );
 
-            // 3. 触发 OpenList 同步 (可选，或者由用户手动触发)
-            // 这里为了演示，先尝试同步
-            // 注意：转存后文件可能不会立即在 OpenList 刷新，通常需要一点延迟
             res.json({ message: '转存任务已提交', detail: result.message });
         } else {
             res.status(500).json({ error: result.message });

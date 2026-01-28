@@ -21,17 +21,23 @@
         <el-input v-model="form.openlist_default_path" placeholder="/volume1/Media" />
       </el-form-item>
 
-      <el-divider content-position="left">网盘 Cookie 配置</el-divider>
+      <el-divider content-position="left">网盘配置</el-divider>
       <el-form-item label="115 Cookie">
-        <el-input v-model="form.cookie_115" type="textarea" :rows="3" />
+        <el-input v-model="form.cookie_115" type="password" show-password />
+      </el-form-item>
+      <el-form-item label="115 转存目录 ID">
+        <el-input v-model="form.folder_id_115" placeholder="默认为 0 (根目录)" />
       </el-form-item>
       <el-form-item label="夸克 Cookie">
-        <el-input v-model="form.cookie_quark" type="textarea" :rows="3" />
+        <el-input v-model="form.cookie_quark" type="password" show-password />
+      </el-form-item>
+      <el-form-item label="夸克 转存目录 ID">
+        <el-input v-model="form.folder_id_quark" placeholder="默认为 0 (根目录)" />
       </el-form-item>
 
       <el-divider content-position="left">Telegram Bot 配置</el-divider>
       <el-form-item label="Bot Token">
-        <el-input v-model="form.telegram_bot_token" placeholder="123456789:ABCDEF..." />
+        <el-input v-model="form.telegram_bot_token" placeholder="123456789:ABCDEF..." type="password" show-password />
       </el-form-item>
 
       <el-divider content-position="left" v-if="isAdmin">用户管理</el-divider>
@@ -77,7 +83,7 @@
 <script setup lang="ts">
 import { reactive, onMounted, ref, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getSettings, updateSettings, updateCloudAccount } from '../api/system';
+import { getSettings, updateSettings } from '../api/system';
 import { getUsers, createUser, deleteUser } from '../api/auth';
 
 const loading = ref(false);
@@ -95,7 +101,9 @@ const form = reactive({
   openlist_password: '',
   openlist_default_path: '',
   cookie_115: '',
+  folder_id_115: '',
   cookie_quark: '',
+  folder_id_quark: '',
   telegram_bot_token: ''
 });
 
@@ -141,15 +149,12 @@ const handleSave = async () => {
       openlist_username: form.openlist_username,
       openlist_password: form.openlist_password,
       openlist_default_path: form.openlist_default_path,
-      telegram_bot_token: form.telegram_bot_token
+      telegram_bot_token: form.telegram_bot_token,
+      cookie_115: form.cookie_115,
+      folder_id_115: form.folder_id_115,
+      cookie_quark: form.cookie_quark,
+      folder_id_quark: form.folder_id_quark
     });
-
-    if (form.cookie_115) {
-      await updateCloudAccount({ type: '115', cookie: form.cookie_115, name: '115主账号' });
-    }
-    if (form.cookie_quark) {
-      await updateCloudAccount({ type: 'quark', cookie: form.cookie_quark, name: '夸克主账号' });
-    }
 
     ElMessage.success('配置已成功保存');
   } finally {

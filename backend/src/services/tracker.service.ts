@@ -157,16 +157,35 @@ export class TrackerService {
             if (newResources.length > 0) {
                 console.log(`[TrackerService] Found ${newResources.length} new resources for task: ${task.name}`);
                 
-                // 获取默认网盘账号
-                const account = await db.get('SELECT type, cookie FROM cloud_accounts ORDER BY updated_at DESC LIMIT 1');
+                // 获取默认网盘配置
+                const settingsRows = await db.all('SELECT key, value FROM settings WHERE key IN ("cookie_quark", "folder_id_quark", "cookie_115", "folder_id_115")');
+                const settings: any = {};
+                settingsRows.forEach(row => {
+                    settings[row.key] = row.value;
+                });
                 
-                if (account) {
+                // 优先使用夸克，其次 115
+                let type = '';
+                let cookie = '';
+                let targetFolderId = '0';
+
+                if (settings.cookie_quark) {
+                    type = 'quark';
+                    cookie = settings.cookie_quark;
+                    targetFolderId = settings.folder_id_quark || '0';
+                } else if (settings.cookie_115) {
+                    type = '115';
+                    cookie = settings.cookie_115;
+                    targetFolderId = settings.folder_id_115 || '0';
+                }
+                
+                if (type && cookie) {
                     for (const res of newResources) {
-                        console.log(`[TrackerService] Auto-transferring: ${res.name} to ${account.type}`);
-                        // 自动转存第一个匹配项（或者根据过滤规则）
-                        const transferRes = account.type === '115' 
-                            ? await cloudService.saveTo115(account.cookie, res.url)
-                            : await cloudService.saveToQuark(account.cookie, res.url);
+                        console.log(`[TrackerService] Auto-transferring: ${res.name} to ${type}`);
+                        
+                        const transferRes = type === '115' 
+                            ? await cloudService.saveTo115(cookie, res.url, targetFolderId)
+                            : await cloudService.saveToQuark(cookie, res.url, targetFolderId);
 
                         if (transferRes.success) {
                             await db.run(
@@ -174,7 +193,7 @@ export class TrackerService {
                                 res.name, res.url, 'auto_transferred'
                             );
                             console.log(`[TrackerService] Successfully auto-transferred: ${res.name}`);
-                            this.notify(`[HoraceMovie] 追剧成功: ${res.name} 已自动转存到 ${account.type}`);
+                            this.notify(`[HoraceMovie] 追剧成功: ${res.name} 已自动转存到 ${type}`);
                         } else {
                             console.warn(`[TrackerService] Auto-transfer failed for ${res.name}: ${transferRes.message}`);
                         }

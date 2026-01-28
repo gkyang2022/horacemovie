@@ -3,6 +3,7 @@ import { open, Database } from 'sqlite';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -68,12 +69,19 @@ export async function initDb() {
         );
     `);
 
-    // Create default admin if not exists (password: admin123)
+    // Create default admin if not exists
     const adminExists = await db.get('SELECT id FROM users WHERE username = ?', 'admin');
     if (!adminExists) {
-        // In a real app, use bcrypt. For now, simple text or plain for setup
-        await db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', 'admin', 'admin123', 'admin');
-        console.log('Default admin created: admin/admin123');
+        const randomPassword = crypto.randomBytes(6).toString('hex'); // 12位随机密码
+        await db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', 'admin', randomPassword, 'admin');
+        console.log('************************************************');
+        console.log('*                                              *');
+        console.log('*   Initial Admin Created Successfully!        *');
+        console.log(`*   Username: admin                            *`);
+        console.log(`*   Password: ${randomPassword}                 *`);
+        console.log('*                                              *');
+        console.log('*   Please change this password after login.   *');
+        console.log('************************************************');
     }
 
     return db;

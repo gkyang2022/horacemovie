@@ -55,3 +55,22 @@ export const deleteUser = async (req: Request, res: Response) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+export const updateMe = async (req: Request, res: Response) => {
+    const { id, username, password } = req.body;
+    const db = getDb();
+
+    try {
+        if (password) {
+            await db.run('UPDATE users SET username = ?, password = ? WHERE id = ?', username, password, id);
+        } else {
+            await db.run('UPDATE users SET username = ? WHERE id = ?', username, id);
+        }
+        res.json({ message: '个人信息已更新' });
+    } catch (error: any) {
+        if (error.message.includes('UNIQUE constraint failed')) {
+            return res.status(400).json({ error: '用户名已存在' });
+        }
+        res.status(500).json({ error: error.message });
+    }
+};

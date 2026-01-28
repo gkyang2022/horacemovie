@@ -2,59 +2,72 @@
   <div class="settings">
     <h1>系统设置</h1>
     <el-form :model="form" label-width="140px" style="max-width: 800px" v-loading="loading">
-      <el-divider content-position="left">Pansou 配置</el-divider>
-      <el-form-item label="Pansou API 地址">
-        <el-input v-model="form.pansou_url" placeholder="https://api.pansou.com" />
-      </el-form-item>
-
-      <el-divider content-position="left">OpenList 配置</el-divider>
-      <el-form-item label="OpenList API 地址">
-        <el-input v-model="form.openlist_url" placeholder="http://nas-ip:5244" />
-      </el-form-item>
+      <el-divider content-position="left">个人信息</el-divider>
       <el-form-item label="用户名">
-        <el-input v-model="form.openlist_username" />
+        <el-input v-model="userProfile.username" placeholder="修改用户名" />
       </el-form-item>
-      <el-form-item label="密码">
-        <el-input v-model="form.openlist_password" type="password" show-password />
+      <el-form-item label="新密码">
+        <el-input v-model="userProfile.password" type="password" show-password placeholder="留空则不修改密码" />
       </el-form-item>
-      <el-form-item label="默认同步路径">
-        <el-input v-model="form.openlist_default_path" placeholder="/volume1/Media" />
-      </el-form-item>
-
-      <el-divider content-position="left">网盘配置</el-divider>
-      <el-form-item label="115 Cookie">
-        <el-input v-model="form.cookie_115" type="password" show-password />
-      </el-form-item>
-      <el-form-item label="115 转存目录 ID">
-        <el-input v-model="form.folder_id_115" placeholder="默认为 0 (根目录)" />
-      </el-form-item>
-      <el-form-item label="夸克 Cookie">
-        <el-input v-model="form.cookie_quark" type="password" show-password />
-      </el-form-item>
-      <el-form-item label="夸克 转存目录 ID">
-        <el-input v-model="form.folder_id_quark" placeholder="默认为 0 (根目录)" />
-      </el-form-item>
-
-      <el-divider content-position="left">Telegram Bot 配置</el-divider>
-      <el-form-item label="Bot Token">
-        <el-input v-model="form.telegram_bot_token" placeholder="123456789:ABCDEF..." type="password" show-password />
-      </el-form-item>
-
-      <el-divider content-position="left" v-if="isAdmin">用户管理</el-divider>
-      <el-table :data="users" v-if="isAdmin" style="margin-bottom: 20px">
-        <el-table-column prop="username" label="用户名" />
-        <el-table-column prop="role" label="角色" />
-        <el-table-column label="操作">
-          <template #default="{ row }">
-            <el-button type="danger" size="small" @click="handleDeleteUser(row.id)" :disabled="row.username === 'admin'">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-button v-if="isAdmin" type="success" size="small" @click="showAddUser = true" style="margin-bottom: 20px">添加用户</el-button>
-
       <el-form-item>
-        <el-button type="primary" @click="handleSave">保存配置</el-button>
+        <el-button type="warning" @click="handleUpdateProfile">更新个人信息</el-button>
       </el-form-item>
+
+      <template v-if="isAdmin">
+        <el-divider content-position="left">Pansou 配置</el-divider>
+        <el-form-item label="Pansou API 地址">
+          <el-input v-model="form.pansou_url" placeholder="https://api.pansou.com" />
+        </el-form-item>
+
+        <el-divider content-position="left">OpenList 配置</el-divider>
+        <el-form-item label="OpenList API 地址">
+          <el-input v-model="form.openlist_url" placeholder="http://nas-ip:5244" />
+        </el-form-item>
+        <el-form-item label="用户名">
+          <el-input v-model="form.openlist_username" />
+        </el-form-item>
+        <el-form-item label="密码">
+          <el-input v-model="form.openlist_password" type="password" show-password />
+        </el-form-item>
+        <el-form-item label="默认同步路径">
+          <el-input v-model="form.openlist_default_path" placeholder="/volume1/Media" />
+        </el-form-item>
+
+        <el-divider content-position="left">网盘配置</el-divider>
+        <el-form-item label="115 Cookie">
+          <el-input v-model="form.cookie_115" type="password" show-password />
+        </el-form-item>
+        <el-form-item label="115 转存目录 ID">
+          <el-input v-model="form.folder_id_115" placeholder="默认为 0 (根目录)" />
+        </el-form-item>
+        <el-form-item label="夸克 Cookie">
+          <el-input v-model="form.cookie_quark" type="password" show-password />
+        </el-form-item>
+        <el-form-item label="夸克 转存目录 ID">
+          <el-input v-model="form.folder_id_quark" placeholder="默认为 0 (根目录)" />
+        </el-form-item>
+
+        <el-divider content-position="left">Telegram Bot 配置</el-divider>
+        <el-form-item label="Bot Token">
+          <el-input v-model="form.telegram_bot_token" placeholder="123456789:ABCDEF..." type="password" show-password />
+        </el-form-item>
+
+        <el-divider content-position="left">用户管理</el-divider>
+        <el-table :data="users" style="margin-bottom: 20px">
+          <el-table-column prop="username" label="用户名" />
+          <el-table-column prop="role" label="角色" />
+          <el-table-column label="操作">
+            <template #default="{ row }">
+              <el-button type="danger" size="small" @click="handleDeleteUser(row.id)" :disabled="row.username === 'admin'">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-button type="success" size="small" @click="showAddUser = true" style="margin-bottom: 20px">添加用户</el-button>
+
+        <el-form-item>
+          <el-button type="primary" @click="handleSave">保存全局配置</el-button>
+        </el-form-item>
+      </template>
     </el-form>
 
     <el-dialog v-model="showAddUser" title="添加用户" width="400px">
@@ -84,7 +97,7 @@
 import { reactive, onMounted, ref, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getSettings, updateSettings } from '../api/system';
-import { getUsers, createUser, deleteUser } from '../api/auth';
+import { getUsers, createUser, deleteUser, updateMe } from '../api/auth';
 
 const loading = ref(false);
 const users = ref<any[]>([]);
@@ -93,6 +106,30 @@ const userForm = reactive({ username: '', password: '', role: 'guest' });
 
 const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 const isAdmin = computed(() => currentUser.role === 'admin');
+
+const userProfile = reactive({
+  id: currentUser.id,
+  username: currentUser.username,
+  password: ''
+});
+
+const handleUpdateProfile = async () => {
+  if (!userProfile.username) {
+    return ElMessage.error('用户名不能为空');
+  }
+  loading.value = true;
+  try {
+    await updateMe(userProfile);
+    ElMessage.success('个人信息更新成功，请重新登录');
+    // 强制重新登录
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.error || '更新失败');
+  } finally {
+    loading.value = false;
+  }
+};
 
 const form = reactive({
   pansou_url: '',

@@ -10,6 +10,7 @@ const cloudService = CloudStorageService.getInstance();
 export class TrackerService {
     private static instance: TrackerService;
     private bot: Telegraf | null = null;
+    private scheduleTask: ReturnType<typeof cron.schedule> | null = null;
 
     private constructor() {
         this.initBot();
@@ -24,8 +25,13 @@ export class TrackerService {
     }
 
     public async stop() {
+        if (this.scheduleTask) {
+            this.scheduleTask.stop();
+            this.scheduleTask = null;
+        }
         if (this.bot) {
             await this.bot.stop();
+            this.bot = null;
             console.log('Telegram Bot stopped');
         }
     }
@@ -75,15 +81,22 @@ export class TrackerService {
             // 帮助命令
             this.bot.help((ctx) => ctx.reply('HoraceMovie Bot 命令:\n/search <关键词> - 搜索网盘资源\n/track <关键词> - 开启资源追踪\n/help - 显示此帮助'));
 
-            this.bot.launch().catch(err => console.error('TG Bot launch failed:', err));
+            // Disable telegraf signal handling to avoid conflict with tsx/manual handlers
+            (this.bot.launch as any)({
+                handleSignals: false
+            }).catch((err: any) => console.error('TG Bot launch failed:', err));
             console.log('Telegram Bot initialized and launched');
         }
     }
 
     private startSchedule() {
-        // 每小时检查一次到期的任务
-        cron.schedule('0 * * * *', () => {
-            this.checkAllTasks();
+        if (this.scheduleTask) {
+            this.scheduleTask.stop();
+        }
+        this.scheduleTask = cron.schedule('0 * * * *', () => {
+            void this.checkAllTasks().catch((err: any) => {
+                console.error('Tracker scheduler tick failed:', err?.message || err);
+            });
         });
         console.log('Tracker scheduler started (every hour)');
     }

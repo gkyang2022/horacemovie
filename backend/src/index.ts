@@ -4,7 +4,7 @@ import morgan from 'morgan';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import 'express-async-errors';
-import { initDb } from './db/index.js';
+import { closeDb, initDb } from './db/index.js';
 import doubanRoutes from './routes/douban.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import searchRoutes from './routes/search.routes.js';
@@ -12,6 +12,8 @@ import transferRoutes from './routes/transfer.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import trackerRoutes from './routes/tracker.routes.js';
 import { TrackerService } from './services/tracker.service.js';
+import type { Server } from 'node:http';
+import type { Socket } from 'node:net';
 
 dotenv.config();
 
@@ -51,22 +53,68 @@ async function startServer() {
     try {
         await initDb();
         const tracker = TrackerService.getInstance(); // Start scheduler and bot
-        const server = app.listen(port, () => {
+        const server: Server = app.listen(port, () => {
             console.log(`HoraceMovie Backend running at http://localhost:${port}`);
+        });
+        const sockets = new Set<Socket>();
+        server.on('connection', (socket) => {
+            sockets.add(socket);
+            socket.on('close', () => sockets.delete(socket));
         });
 
         // Graceful shutdown
-        const shutdown = async (signal: string) => {
-            console.log(`Received ${signal}. Exiting...`);
-            
-            // Just force exit immediately for tsx. 
-            // Most resources like DB and Bot handles unexpected termination well enough for dev.
-            // This is the only way to stop the "Force killing..." message from tsx.
+        const isDev = process.argv[1]?.endsWith('.ts') || process.env.NODE_ENV !== 'production';
+        let isShuttingDown = false;
+        const shutdown = async () => {
+            if (isShuttingDown) return;
+            isShuttingDown = true;
+
+            try {
+                for (const socket of sockets) {
+                    socket.destroy();
+                }
+            } catch {}
+
+            if (isDev) {
+                try {
+                    void tracker.stop();
+                } catch {}
+                try {
+                    void closeDb();
+                } catch {}
+                try {
+                    server.close();
+                } catch {}
+                process.exit(0);
+            }
+
+            const forceExitTimer = setTimeout(() => process.exit(1), 5000);
+            forceExitTimer.unref();
+
+            try {
+                await tracker.stop();
+            } catch {}
+
+            try {
+                await new Promise<void>((resolve) => {
+                    try {
+                        server.close(() => resolve());
+                    } catch {
+                        resolve();
+                    }
+                });
+            } catch {}
+
+            try {
+                await closeDb();
+            } catch {}
+
+            clearTimeout(forceExitTimer);
             process.exit(0);
         };
 
-        process.on('SIGTERM', () => shutdown('SIGTERM'));
-        process.on('SIGINT', () => shutdown('SIGINT'));
+        process.once('SIGTERM', () => void shutdown());
+        process.once('SIGINT', () => void shutdown());
 
     } catch (error) {
         console.error('Failed to start server:', error);

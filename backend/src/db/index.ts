@@ -13,7 +13,7 @@ if (!fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
 }
 
-let db: Database;
+let db: Database | null = null;
 
 export async function initDb() {
     db = await open({
@@ -84,4 +84,10 @@ export function getDb() {
         throw new Error('Database not initialized. Call initDb first.');
     }
     return db;
+}
+
+export async function closeDb() {
+    if (!db) return;
+    await db.close();
+    db = null;
 }

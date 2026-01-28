@@ -58,6 +58,7 @@ export class DoubanService {
 
     async getPopular(type: 'movie' | 'tv' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> {
         try {
+            console.log(`[DoubanService] Fetching popular ${type}s (start: ${start}, count: ${count})`);
             const collectionId = type === 'movie' ? 'movie_hot_gaia' : 'tv_hot';
             const url = `${DOUBAN_API_HOST}/subject_collection/${collectionId}/items`;
             const response = await axios.get(url, {
@@ -69,10 +70,12 @@ export class DoubanService {
                 headers: {
                     'User-Agent': 'MicroMessenger/',
                     'Referer': 'https://servicewechat.com/wx2f9b06c1de1ccfca/91/page-frame.html'
-                }
+                },
+                timeout: 10000
             });
 
             const items = response.data.subject_collection_items || [];
+            console.log(`[DoubanService] Successfully fetched ${items.length} popular ${type}s`);
             return items.map((item: any) => ({
                 id: item.id,
                 title: item.title,
@@ -83,13 +86,14 @@ export class DoubanService {
                 card_subtitle: item.card_subtitle || item.info
             }));
         } catch (error: any) {
-            console.error('Error fetching popular from Douban:', error.response?.data || error.message);
+            console.error(`[DoubanService] Error fetching popular ${type}s:`, error.response?.data || error.message);
             return [];
         }
     }
 
     async search(query: string, start = 0, count = 20): Promise<DoubanMedia[]> {
         try {
+            console.log(`[DoubanService] Searching Douban with query: "${query}" (start: ${start}, count: ${count})`);
             const url = `${DOUBAN_API_HOST}/search/subjects`;
             const response = await axios.get(url, {
                 params: {
@@ -101,7 +105,8 @@ export class DoubanService {
                 headers: {
                     'User-Agent': 'MicroMessenger/',
                     'Referer': 'https://servicewechat.com/wx2f9b06c1de1ccfca/91/page-frame.html'
-                }
+                },
+                timeout: 10000
             });
 
             const data = response.data;
@@ -113,6 +118,8 @@ export class DoubanService {
             } else if (Array.isArray(data.items)) {
                 rawItems = data.items;
             }
+
+            console.log(`[DoubanService] Search returned ${rawItems.length} raw items for "${query}"`);
 
             if (rawItems.length === 0) {
                 return [];
@@ -137,6 +144,8 @@ export class DoubanService {
                 return target;
             }).filter((item: any) => item && (item.id || item.target_id) && (item.title));
 
+            console.log(`[DoubanService] Processed ${items.length} valid items for "${query}"`);
+
             return items.map((item: any) => ({
                 id: item.id,
                 title: item.title,
@@ -147,13 +156,14 @@ export class DoubanService {
                 card_subtitle: item.card_subtitle || item.info
             }));
         } catch (error: any) {
-            console.error('Error searching Douban:', error.response?.data || error.message);
+            console.error(`[DoubanService] Search error for "${query}":`, error.response?.data || error.message);
             return [];
         }
     }
 
     async getDetail(id: string, type: string): Promise<DoubanMedia | null> {
         try {
+            console.log(`[DoubanService] Fetching detail for ${type} (ID: ${id})`);
             const url = `${DOUBAN_API_HOST}/${type}/${id}`;
             const response = await axios.get(url, {
                 params: {
@@ -162,10 +172,12 @@ export class DoubanService {
                 headers: {
                     'User-Agent': 'MicroMessenger/',
                     'Referer': 'https://servicewechat.com/wx2f9b06c1de1ccfca/91/page-frame.html'
-                }
+                },
+                timeout: 10000
             });
 
             const item = response.data;
+            console.log(`[DoubanService] Successfully fetched detail for: ${item.title}`);
             return {
                 id: item.id,
                 title: item.title,
@@ -176,8 +188,8 @@ export class DoubanService {
                 genres: item.genres || [],
                 description: item.intro || item.description || ''
             };
-        } catch (error) {
-            console.error('Error fetching detail from Douban:', error);
+        } catch (error: any) {
+            console.error(`[DoubanService] Error fetching detail for ${id}:`, error.response?.data || error.message);
             return null;
         }
     }

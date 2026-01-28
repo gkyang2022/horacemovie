@@ -26,6 +26,7 @@ export class PansouService {
         const pansouUrlSetting = await db.get('SELECT value FROM settings WHERE key = ?', 'pansou_url');
         
         if (!pansouUrlSetting || !pansouUrlSetting.value) {
+            console.error('[PansouService] Pansou API URL not configured in settings');
             throw new Error('Pansou API URL not configured');
         }
 
@@ -39,7 +40,7 @@ export class PansouService {
         const apiUrl = baseUrl.includes('/api/search') ? baseUrl : `${baseUrl}/api/search`;
 
         try {
-            console.log(`Searching Pansou at: ${apiUrl} with kw: ${keyword}`);
+            console.log(`[PansouService] Searching Pansou at: ${apiUrl} with kw: "${keyword}"`);
             // According to fish2018/pansou documentation, POST /api/search with {"kw": "..."} is preferred.
             // Adding cloud_types to filter for specific cloud providers.
             const response = await axios.post(apiUrl, {
@@ -52,7 +53,7 @@ export class PansouService {
                 timeout: 15000 
             });
 
-            console.log('Pansou response status:', response.status);
+            console.log(`[PansouService] Response status: ${response.status}`);
             
             let items: any[] = [];
             const respBody = response.data;
@@ -76,7 +77,7 @@ export class PansouService {
                 items = Array.isArray(respBody.results) ? respBody.results : Object.values(respBody.results).flat();
             }
 
-            console.log(`Pansou found ${items.length} items`);
+            console.log(`[PansouService] Successfully parsed ${items.length} items for "${keyword}"`);
 
             return items.map((item: any) => ({
                 name: item.title || item.name || item.note || '未知文件名',
@@ -86,7 +87,7 @@ export class PansouService {
                 time: item.time || item.date || item.datetime || ''
             }));
         } catch (error: any) {
-            console.error('Pansou search error details:', error.response?.data || error.message);
+            console.error(`[PansouService] Search error for "${keyword}":`, error.response?.data || error.message);
             return [];
         }
     }

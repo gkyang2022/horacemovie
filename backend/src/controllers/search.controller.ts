@@ -5,15 +5,19 @@ const pansouService = PansouService.getInstance();
 
 export const searchResources = async (req: Request, res: Response) => {
     const { q } = req.query;
+    console.log(`[SearchController] GET /api/search?q=${q}`);
 
     if (!q) {
+        console.warn('[SearchController] Missing query parameter "q"');
         return res.status(400).json({ error: 'Query parameter "q" is required' });
     }
 
     try {
         const results = await pansouService.search(q as string);
+        console.log(`[SearchController] Search for "${q}" completed with ${results.length} results`);
         res.json(results);
     } catch (error: any) {
+        console.error(`[SearchController] Search failed for "${q}":`, error.message);
         res.status(500).json({ error: error.message });
     }
 };

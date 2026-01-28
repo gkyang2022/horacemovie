@@ -6,10 +6,30 @@ const service = axios.create({
   timeout: 10000
 });
 
-service.interceptors.response.use(
-  (response) => response.data,
+service.interceptors.request.use(
+  (config) => {
+    if (import.meta.env.DEV) {
+      console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.params || config.data || '');
+    }
+    return config;
+  },
   (error) => {
-    ElMessage.error(error.response?.data?.error || '网络错误');
+    console.error('[API Request Error]', error);
+    return Promise.reject(error);
+  }
+);
+
+service.interceptors.response.use(
+  (response) => {
+    if (import.meta.env.DEV) {
+      console.log(`[API Response] ${response.config.url}`, response.data);
+    }
+    return response.data;
+  },
+  (error) => {
+    const errorMsg = error.response?.data?.error || error.message || '网络错误';
+    console.error(`[API Response Error] ${error.config?.url}:`, errorMsg);
+    ElMessage.error(errorMsg);
     return Promise.reject(error);
   }
 );

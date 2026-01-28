@@ -43,9 +43,17 @@ app.get('/api/health', (req, res) => {
 
 // Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error(err.stack);
-    res.status(err.status || 500).json({
-        error: err.message || 'Internal Server Error'
+    const status = err.status || 500;
+    const message = err.message || 'Internal Server Error';
+    
+    console.error(`[GlobalError] ${req.method} ${req.path} - Status: ${status}`);
+    console.error(`[GlobalError] Message: ${message}`);
+    if (status === 500) {
+        console.error(`[GlobalError] Stack: ${err.stack}`);
+    }
+    
+    res.status(status).json({
+        error: message
     });
 });
 

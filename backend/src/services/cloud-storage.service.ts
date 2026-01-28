@@ -66,8 +66,14 @@ export class CloudStorageService {
                 return { success: true, message: '115 分享转存成功', data: response.data };
             }
 
-            const errorMsg = response.data?.error_msg || response.data?.msg || 'Unknown error';
-            console.warn(`[CloudStorageService] 115 share receive failed for ${shareCode}: ${errorMsg}`);
+            const errorMsg = response.data?.error_msg || response.data?.msg || (response.data?.state === false ? '操作失败' : 'Unknown error');
+            console.warn(`[CloudStorageService] 115 share receive failed for ${shareCode}. Response:`, JSON.stringify(response.data));
+            
+            // 特殊处理：如果已经转存过，115 会返回特定错误，我们视其为某种程度的“成功”或友好提示
+            if (errorMsg.includes('已接收') || errorMsg.includes('已经接收')) {
+                return { success: true, message: '资源已在网盘中，无需重复转存', data: response.data };
+            }
+
             return { success: false, message: `115 转存失败: ${errorMsg}` };
         } catch (error: any) {
             console.error(`[CloudStorageService] 115 share receive exception for ${shareUrl}:`, error.message);

@@ -193,6 +193,24 @@ export class TrackerService {
                                 res.name, res.url, 'auto_transferred'
                             );
                             console.log(`[TrackerService] Successfully auto-transferred: ${res.name}`);
+                            
+                            // 自动触发 OpenList 同步
+                            const openlistPathKey = type === '115' ? 'openlist_path_115' : 'openlist_path_quark';
+                            const openlistPathRow = await db.get('SELECT value FROM settings WHERE key = ?', openlistPathKey);
+                            const openlistSourcePath = openlistPathRow?.value;
+
+                            if (openlistSourcePath) {
+                                console.log(`[TrackerService] Triggering auto-sync for ${res.name} from ${openlistSourcePath}`);
+                                const openlistService = (await import('./openlist.service.js')).OpenListService.getInstance();
+                                void openlistService.copyFile(openlistSourcePath, [], undefined)
+                                    .then(syncSuccess => {
+                                        console.log(`[TrackerService] Auto-sync ${syncSuccess ? 'task submitted' : 'failed'} for ${res.name}`);
+                                    })
+                                    .catch(err => {
+                                        console.error(`[TrackerService] Auto-sync error for ${res.name}:`, err.message);
+                                    });
+                            }
+
                             this.notify(`[HoraceMovie] 追剧成功: ${res.name} 已自动转存到 ${type}`);
                         } else {
                             console.warn(`[TrackerService] Auto-transfer failed for ${res.name}: ${transferRes.message}`);

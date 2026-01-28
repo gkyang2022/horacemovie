@@ -42,6 +42,25 @@ export const transferAndSync = async (req: Request, res: Response) => {
                 mediaName, shareUrl, 'transferred'
             );
 
+            // 3. 自动触发 OpenList 同步
+            const openlistPathKey = type === '115' ? 'openlist_path_115' : 'openlist_path_quark';
+            const openlistPathRow = await db.get('SELECT value FROM settings WHERE key = ?', openlistPathKey);
+            const openlistSourcePath = openlistPathRow?.value;
+
+            if (openlistSourcePath) {
+                console.log(`[TransferController] Triggering auto-sync for ${mediaName} from ${openlistSourcePath}`);
+                // 注意：转存成功到 OpenList 能够看到文件可能有延迟，这里异步执行同步
+                void openlistService.copyFile(openlistSourcePath, [], undefined)
+                    .then(syncSuccess => {
+                        console.log(`[TransferController] Auto-sync ${syncSuccess ? 'task submitted' : 'failed'} for ${mediaName}`);
+                    })
+                    .catch(err => {
+                        console.error(`[TransferController] Auto-sync error for ${mediaName}:`, err.message);
+                    });
+            } else {
+                console.log(`[TransferController] No OpenList source path configured for ${type}, skipping auto-sync`);
+            }
+
             res.json({ message: '转存任务已提交', detail: result.message });
         } else {
             res.status(500).json({ error: result.message });

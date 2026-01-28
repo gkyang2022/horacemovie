@@ -21,7 +21,7 @@
 
         <el-divider content-position="left">OpenList 配置</el-divider>
         <el-form-item label="OpenList API 地址">
-          <el-input v-model="form.openlist_url" placeholder="http://nas-ip:5244" />
+          <el-input v-model="form.openlist_url" placeholder="http://127.0.0.1:5244" />
         </el-form-item>
         <el-form-item label="用户名">
           <el-input v-model="form.openlist_username" />
@@ -38,13 +38,20 @@
           <el-input v-model="form.cookie_115" type="password" show-password />
         </el-form-item>
         <el-form-item label="115 转存目录 ID">
-          <el-input v-model="form.folder_id_115" placeholder="默认为 0 (根目录)" />
+          <el-input v-model="form.folder_id_115" placeholder="115网盘内的目录ID, 默认为 0" />
         </el-form-item>
+        <el-form-item label="115 OpenList 路径">
+          <el-input v-model="form.openlist_path_115" placeholder="OpenList中115网盘挂载的路径, 如 /115" />
+        </el-form-item>
+        
         <el-form-item label="夸克 Cookie">
           <el-input v-model="form.cookie_quark" type="password" show-password />
         </el-form-item>
         <el-form-item label="夸克 转存目录 ID">
-          <el-input v-model="form.folder_id_quark" placeholder="默认为 0 (根目录)" />
+          <el-input v-model="form.folder_id_quark" placeholder="夸克网盘内的目录ID, 默认为 0" />
+        </el-form-item>
+        <el-form-item label="夸克 OpenList 路径">
+          <el-input v-model="form.openlist_path_quark" placeholder="OpenList中夸克网盘挂载的路径, 如 /quark" />
         </el-form-item>
 
         <el-divider content-position="left">Telegram Bot 配置</el-divider>
@@ -139,8 +146,10 @@ const form = reactive({
   openlist_default_path: '',
   cookie_115: '',
   folder_id_115: '',
+  openlist_path_115: '',
   cookie_quark: '',
   folder_id_quark: '',
+  openlist_path_quark: '',
   telegram_bot_token: ''
 });
 
@@ -189,8 +198,10 @@ const handleSave = async () => {
       telegram_bot_token: form.telegram_bot_token,
       cookie_115: form.cookie_115,
       folder_id_115: form.folder_id_115,
+      openlist_path_115: form.openlist_path_115,
       cookie_quark: form.cookie_quark,
-      folder_id_quark: form.folder_id_quark
+      folder_id_quark: form.folder_id_quark,
+      openlist_path_quark: form.openlist_path_quark
     });
 
     ElMessage.success('配置已成功保存');

@@ -5,6 +5,7 @@ export interface TransferResult {
     success: boolean;
     message: string;
     data?: any;
+    names?: string[];
 }
 
 export class CloudStorageService {
@@ -45,7 +46,27 @@ export class CloudStorageService {
             const urlObj = new URL(shareUrl);
             const domain = urlObj.origin;
 
-            // 4. 调用 115 分享接收接口 (Share Receive)
+            // 4. 获取分享快照以提取文件名
+            let names: string[] = [];
+            try {
+                const snapRes = await axios.get(`https://webapi.115.com/share/snap?share_code=${shareCode}&receive_code=${receiveCode}`, {
+                    headers: {
+                        'Cookie': cookie,
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
+                    },
+                    timeout: 5000
+                });
+                if (snapRes.data && snapRes.data.state && snapRes.data.data) {
+                    // 提取顶级文件/目录名
+                    const list = snapRes.data.data.list || [];
+                    names = list.map((item: any) => item.file_name || item.n);
+                    console.log(`[CloudStorageService] Extracted 115 share names: ${names.join(', ')}`);
+                }
+            } catch (e: any) {
+                console.warn(`[CloudStorageService] Failed to fetch 115 share snap: ${e.message}`);
+            }
+
+            // 5. 调用 115 分享接收接口 (Share Receive)
             // 使用 webapi.115.com 接口通常比直接使用 115.com 更稳定，避免 404
             const response = await axios.post('https://webapi.115.com/share/receive', 
                 `share_code=${shareCode}&receive_code=${receiveCode}&cid=${targetFolderId}`,
@@ -63,7 +84,7 @@ export class CloudStorageService {
 
             if (response.data && response.data.state === true) {
                 console.log(`[CloudStorageService] 115 share receive successful for: ${shareCode}`);
-                return { success: true, message: '115 分享转存成功', data: response.data };
+                return { success: true, message: '115 分享转存成功', data: response.data, names };
             }
 
             const errorMsg = response.data?.error_msg || response.data?.msg || (response.data?.state === false ? '操作失败' : 'Unknown error');
@@ -71,7 +92,7 @@ export class CloudStorageService {
             
             // 特殊处理：如果已经转存过，115 会返回特定错误，我们视其为某种程度的“成功”或友好提示
             if (errorMsg.includes('已接收') || errorMsg.includes('已经接收')) {
-                return { success: true, message: '资源已在网盘中，无需重复转存', data: response.data };
+                return { success: true, message: '资源已在网盘中，无需重复转存', data: response.data, names };
             }
 
             return { success: false, message: `115 转存失败: ${errorMsg}` };
@@ -202,6 +223,7 @@ export class CloudStorageService {
 
             const fidList = detailData.list?.map((item: any) => item.fid) || [];
             const fidTokenList = detailData.list?.map((item: any) => item.share_fid_token) || [];
+            const names = detailData.list?.map((item: any) => item.file_name) || [];
 
             if (fidList.length === 0) {
                 return { success: false, message: '未找到可转存的文件' };
@@ -236,8 +258,8 @@ export class CloudStorageService {
                 }
 
                 if (response.data && (response.data.status === 200 || response.data.code === 0)) {
-                    console.log(`[CloudStorageService] Quark transfer successful for shareId: ${shareId}`);
-                    return { success: true, message: '夸克转存成功' };
+                    console.log(`[CloudStorageService] Quark transfer successful for shareId: ${shareId}, names: ${names.join(', ')}`);
+                    return { success: true, message: '夸克转存成功', names };
                 }
                 
                 const errorMsg = response.data?.message || '夸克转存失败';

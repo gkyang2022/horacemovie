@@ -44,13 +44,19 @@ export const transferAndSync = async (req: Request, res: Response) => {
 
             // 3. 自动触发 OpenList 同步
             const openlistPathKey = type === '115' ? 'openlist_path_115' : 'openlist_path_quark';
-            const openlistPathRow = await db.get('SELECT value FROM settings WHERE key = ?', openlistPathKey);
-            const openlistSourcePath = openlistPathRow?.value;
+            const settingsRows2 = await db.all('SELECT key, value FROM settings WHERE key IN (?, ?)', [openlistPathKey, 'openlist_default_path']);
+            const settings2: any = {};
+            settingsRows2.forEach(row => {
+                settings2[row.key] = row.value;
+            });
+            
+            const openlistSourcePath = settings2[openlistPathKey];
+            const openlistDefaultPath = settings2['openlist_default_path'];
 
             if (openlistSourcePath) {
-                console.log(`[TransferController] Triggering auto-sync for ${mediaName} from ${openlistSourcePath}`);
+                console.log(`[TransferController] Triggering auto-sync for ${mediaName} from ${openlistSourcePath} to ${openlistDefaultPath || 'default'}, names: ${result.names?.join(', ') || 'all'}`);
                 // 注意：转存成功到 OpenList 能够看到文件可能有延迟，这里异步执行同步
-                void openlistService.copyFile(openlistSourcePath, [], undefined)
+                void openlistService.copyFile(openlistSourcePath, result.names || [], openlistDefaultPath)
                     .then(syncSuccess => {
                         console.log(`[TransferController] Auto-sync ${syncSuccess ? 'task submitted' : 'failed'} for ${mediaName}`);
                     })

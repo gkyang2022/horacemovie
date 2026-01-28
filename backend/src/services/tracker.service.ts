@@ -196,13 +196,19 @@ export class TrackerService {
                             
                             // 自动触发 OpenList 同步
                             const openlistPathKey = type === '115' ? 'openlist_path_115' : 'openlist_path_quark';
-                            const openlistPathRow = await db.get('SELECT value FROM settings WHERE key = ?', openlistPathKey);
-                            const openlistSourcePath = openlistPathRow?.value;
+                            const settingsRows2 = await db.all('SELECT key, value FROM settings WHERE key IN (?, ?)', [openlistPathKey, 'openlist_default_path']);
+                            const settings2: any = {};
+                            settingsRows2.forEach(row => {
+                                settings2[row.key] = row.value;
+                            });
+                            
+                            const openlistSourcePath = settings2[openlistPathKey];
+                            const openlistDefaultPath = settings2['openlist_default_path'];
 
                             if (openlistSourcePath) {
-                                console.log(`[TrackerService] Triggering auto-sync for ${res.name} from ${openlistSourcePath}`);
+                                console.log(`[TrackerService] Triggering auto-sync for ${res.name} from ${openlistSourcePath} to ${openlistDefaultPath || 'default'}, names: ${transferRes.names?.join(', ') || 'all'}`);
                                 const openlistService = (await import('./openlist.service.js')).OpenListService.getInstance();
-                                void openlistService.copyFile(openlistSourcePath, [], undefined)
+                                void openlistService.copyFile(openlistSourcePath, transferRes.names || [], openlistDefaultPath)
                                     .then(syncSuccess => {
                                         console.log(`[TrackerService] Auto-sync ${syncSuccess ? 'task submitted' : 'failed'} for ${res.name}`);
                                     })

@@ -185,7 +185,7 @@ import { getPopular, getCharts, type DoubanMedia } from '../api/douban';
 
 const router = useRouter();
 
-type Category = 'movie' | 'tv' | 'variety' | 'animation' | 'showing' | 'soon';
+type Category = 'movie' | 'tv' | 'variety' | 'animation' | 'documentary' | 'showing' | 'soon';
 
 interface Section {
   title: string;
@@ -200,6 +200,7 @@ const sections: Section[] = [
   { title: '热门电影', type: 'movie' },
   { title: '热门电视剧', type: 'tv' },
   { title: '热门综艺', type: 'variety' },
+  { title: '热门纪录片', type: 'documentary' },
   { title: '热门动画', type: 'animation' },
 ];
 
@@ -210,6 +211,7 @@ const data = reactive<Record<Category, DoubanMedia[]>>({
   tv: [],
   variety: [],
   animation: [],
+  documentary: [],
   showing: [],
   soon: [],
 });
@@ -231,6 +233,7 @@ const loading = reactive<Record<Category, boolean>>({
   tv: false,
   variety: false,
   animation: false,
+  documentary: false,
   showing: false,
   soon: false,
 });

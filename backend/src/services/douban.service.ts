@@ -70,7 +70,7 @@ export class DoubanService {
         return processedUrl.replace(/([^:])\/\//g, '$1/');
     }
 
-    async getPopular(type: 'movie' | 'tv' | 'variety' | 'animation' | 'showing' | 'soon' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> {
+    async getPopular(type: 'movie' | 'tv' | 'variety' | 'animation' | 'documentary' | 'showing' | 'soon' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> {
         const cacheKey = `popular_${type}_${start}_${count}`;
         const cachedData = this.cache.get<DoubanMedia[]>(cacheKey);
         if (cachedData) {
@@ -87,6 +87,7 @@ export class DoubanService {
                 case 'tv': collectionId = 'tv_hot'; break;
                 case 'variety': collectionId = 'tv_variety_show'; break;
                 case 'animation': collectionId = 'tv_animation'; break;
+                case 'documentary': collectionId = 'tv_documentary'; break;
                 case 'showing': 
                     collectionId = 'movie_showing'; 
                     mediaType = 'movie';

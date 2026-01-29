@@ -1,7 +1,59 @@
 <template>
   <div class="home-container">
     <div class="home-main">
-      <div v-for="section in sections" :key="section.type" class="section">
+      <!-- 电影上映 Tab 区域 -->
+      <div class="section movie-tabs-section">
+        <div class="section-header tabs-header">
+          <div class="tabs-titles">
+            <h2 
+              class="section-title tab-title" 
+              :class="{ active: activeMovieTab === 'showing' }"
+              @click="activeMovieTab = 'showing'"
+            >正在上映</h2>
+            <span class="tab-divider">|</span>
+            <h2 
+              class="section-title tab-title" 
+              :class="{ active: activeMovieTab === 'soon' }"
+              @click="activeMovieTab = 'soon'"
+            >即将上映</h2>
+          </div>
+        </div>
+        
+        <div class="media-row-container" v-loading="loading[activeMovieTab]">
+          <div class="media-row">
+            <div 
+              v-for="item in data[activeMovieTab]" 
+              :key="item.id" 
+              class="media-card-mini" 
+              @click="goToDetail(item, activeMovieTab === 'showing' ? 'movie' : 'movie')"
+            >
+              <div class="poster-wrapper">
+                <el-image :src="item.poster" fit="cover" class="poster" loading="lazy">
+                  <template #placeholder>
+                    <div class="image-slot">加载中...</div>
+                  </template>
+                  <template #error>
+                    <div class="image-slot">无海报</div>
+                  </template>
+                </el-image>
+                <div v-if="activeMovieTab === 'showing'" class="rating">{{ item.rating }}</div>
+                <div v-else-if="item.pubdate && item.pubdate.length" class="pubdate-tag">
+                  {{ formatPubdate(item.pubdate[0] || '') }}
+                </div>
+              </div>
+              <div class="info">
+                <div class="title" :title="item.title">{{ item.title }}</div>
+                <div class="subtitle" :title="item.card_subtitle || item.year">
+                  {{ item.card_subtitle || item.year }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 其他常规 Section -->
+      <div v-for="section in otherSections" :key="section.type" class="section">
         <div class="section-header">
           <h2 class="section-title">{{ section.title }}</h2>
         </div>
@@ -127,7 +179,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { getPopular, getCharts, type DoubanMedia } from '../api/douban';
 
@@ -140,6 +192,8 @@ interface Section {
   type: Category;
 }
 
+const activeMovieTab = ref<'showing' | 'soon'>('showing');
+
 const sections: Section[] = [
   { title: '正在上映', type: 'showing' },
   { title: '即将上映', type: 'soon' },
@@ -148,6 +202,8 @@ const sections: Section[] = [
   { title: '热门综艺', type: 'variety' },
   { title: '热门动画', type: 'animation' },
 ];
+
+const otherSections = computed(() => sections.filter(s => s.type !== 'showing' && s.type !== 'soon'));
 
 const data = reactive<Record<Category, DoubanMedia[]>>({
   movie: [],
@@ -180,6 +236,17 @@ const loading = reactive<Record<Category, boolean>>({
 });
 
 const loadingCharts = ref(false);
+
+const formatPubdate = (pubdate: string) => {
+  if (!pubdate) return '';
+  // 匹配日期格式 YYYY-MM-DD
+  const match = pubdate.match(/(\d{4}-\d{2}-\d{2})/);
+  if (match && match[1]) {
+    const date = new Date(match[1]);
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
+  }
+  return pubdate;
+};
 
 const fetchSectionData = async (type: Category) => {
   loading[type] = true;
@@ -296,8 +363,8 @@ onMounted(() => {
 }
 
 .media-card-mini {
-  flex: 0 0 180px;
-  width: 180px;
+  flex: 0 0 225px;
+  width: 225px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
@@ -306,176 +373,242 @@ onMounted(() => {
   transform: translateY(-8px);
 }
 
-.poster-wrapper {
-  position: relative;
-  width: 180px;
-  height: 270px;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.poster {
-  width: 100%;
-  height: 100%;
-  transition: transform 0.5s ease;
-}
-
-.media-card-mini:hover .poster {
-  transform: scale(1.05);
-  filter: brightness(0.8);
-}
-
-.rating {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
-  color: #ff9900;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-.info {
-  margin-top: 10px;
-}
-
-.title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #303133;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 1.4;
-}
-
-.subtitle {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: normal;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-/* Sidebar Styles */
-.sidebar-section {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 25px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-}
-
-.sidebar-header {
-  margin-bottom: 15px;
-  border-bottom: 1px solid #f0f2f5;
-  padding-bottom: 10px;
-}
-
-.sidebar-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.chart-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.chart-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  padding: 0;
-  margin-bottom: 0;
-  transition: color 0.2s;
-  border-bottom: 1px solid #f9f9f9;
-}
-
-.chart-item:last-child {
-  border-bottom: none;
-}
-
-.chart-item:hover {
-  color: #409eff;
-}
-
-.chart-rank {
-  width: 24px;
-  height: 48px; /* 增加高度以适应无 padding 的样式 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: bold;
-  color: #909399;
-  background: #f5f7fa;
-  border-radius: 4px;
-  flex-shrink: 0;
-}
-
-.chart-rank.top-three {
-  background: #fef0f0;
-  color: #f56c6c;
-}
-
-.chart-item-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.chart-item-title {
-  font-size: 14px;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chart-item-subtitle {
-  font-size: 12px;
-  color: #909399;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chart-item-rating {
-  font-size: 13px;
-  font-weight: bold;
-  color: #ff9900;
-  min-width: 25px;
-  text-align: right;
-}
-
-.image-slot {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-  background: #f5f7fa;
-  color: #909399;
-  font-size: 12px;
-}
-
-@media (max-width: 1200px) {
-  .home-sidebar {
+  /* Movie Tabs Section Styles */
+  .movie-tabs-section {
+    margin-bottom: 30px;
+  }
+  
+  .tabs-header {
+    margin-bottom: 20px;
+  }
+  
+  .tabs-titles {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  .tab-title {
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    font-size: 22px;
+    color: #909399;
+    transition: all 0.3s;
+    position: relative;
+    padding-left: 0;
+  }
+  
+  .tab-title::before {
     display: none;
   }
-}
-</style>
+  
+  .tab-title.active {
+    color: #303133;
+    font-weight: 600;
+  }
+  
+  .tab-title.active::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: #409eff;
+    border-radius: 2px;
+  }
+  
+  .tab-divider {
+    font-size: 20px;
+    color: #dcdfe6;
+    font-weight: 300;
+  }
+  
+  .pubdate-tag {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 103, 0, 0.9);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .poster-wrapper {
+    position: relative;
+    width: 225px;
+    height: 338px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .poster {
+    width: 100%;
+    height: 100%;
+    transition: transform 0.5s ease;
+  }
+  
+  .media-card-mini:hover .poster {
+    transform: scale(1.05);
+    filter: brightness(0.8);
+  }
+  
+  .rating {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    color: #ff9900;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+  }
+  
+  .info {
+    margin-top: 10px;
+  }
+  
+  .title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #303133;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4;
+  }
+  
+  .subtitle {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  
+  /* Sidebar Styles */
+  .sidebar-section {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  }
+  
+  .sidebar-header {
+    margin-bottom: 15px;
+    border-bottom: 1px solid #f0f2f5;
+    padding-bottom: 10px;
+  }
+  
+  .sidebar-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+  }
+  
+  .chart-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .chart-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 0;
+    transition: color 0.2s;
+    border-bottom: 1px solid #f9f9f9;
+  }
+  
+  .chart-item:last-child {
+    border-bottom: none;
+  }
+  
+  .chart-item:hover {
+    color: #409eff;
+  }
+  
+  .chart-rank {
+    width: 24px;
+    height: 48px; /* 增加高度以适应无 padding 的样式 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    color: #909399;
+    background: #f5f7fa;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  
+  .chart-rank.top-three {
+    background: #fef0f0;
+    color: #f56c6c;
+  }
+  
+  .chart-item-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  
+  .chart-item-title {
+    font-size: 14px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .chart-item-subtitle {
+    font-size: 12px;
+    color: #909399;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .chart-item-rating {
+    font-size: 13px;
+    font-weight: bold;
+    color: #ff9900;
+    min-width: 25px;
+    text-align: right;
+  }
+  
+  .image-slot {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    background: #f5f7fa;
+    color: #909399;
+    font-size: 12px;
+  }
+  
+  @media (max-width: 1200px) {
+    .home-sidebar {
+      display: none;
+    }
+  }
+  </style>

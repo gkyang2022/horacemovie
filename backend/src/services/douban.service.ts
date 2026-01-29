@@ -119,7 +119,8 @@ export class DoubanService {
                 rating: item.rating ? item.rating.value : 0,
                 poster: this.getProxyPoster(item.cover?.url || item.pic?.normal || item.cover_url),
                 year: item.year || '',
-                card_subtitle: item.card_subtitle || item.info
+                card_subtitle: item.card_subtitle || item.info,
+                pubdate: item.pubdate || (item.release_date ? [item.release_date] : [])
             }));
         } catch (error: any) {
             console.error(`[DoubanService] Error fetching collection ${collectionId}:`, error.response?.data || error.message);
@@ -205,7 +206,8 @@ export class DoubanService {
                 rating: item.rating ? item.rating.value : 0,
                 poster: this.getProxyPoster(item.cover?.url || item.pic?.normal || item.cover_url || item.pic?.large),
                 year: item.year || '',
-                card_subtitle: item.card_subtitle || item.info
+                card_subtitle: item.card_subtitle || item.info,
+                pubdate: item.pubdate || (item.release_date ? [item.release_date] : [])
             }));
         } catch (error: any) {
             console.error(`[DoubanService] Search error for "${query}":`, error.response?.data || error.message);

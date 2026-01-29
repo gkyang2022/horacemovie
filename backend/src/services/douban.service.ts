@@ -76,6 +76,15 @@ export class DoubanService {
                 default: collectionId = 'movie_hot_gaia';
             }
             
+            return this.getCollectionItems(collectionId, type, start, count);
+        } catch (error: any) {
+            console.error(`[DoubanService] Error fetching popular ${type}s:`, error.message);
+            return [];
+        }
+    }
+
+    private async getCollectionItems(collectionId: string, type: string, start = 0, count = 20): Promise<DoubanMedia[]> {
+        try {
             const url = `${DOUBAN_API_HOST}/subject_collection/${collectionId}/items`;
             const response = await axios.get(url, {
                 params: {
@@ -91,7 +100,6 @@ export class DoubanService {
             });
 
             const items = response.data.subject_collection_items || [];
-            console.log(`[DoubanService] Successfully fetched ${items.length} popular ${type}s`);
             return items.map((item: any) => ({
                 id: item.id,
                 title: item.title,
@@ -102,10 +110,19 @@ export class DoubanService {
                 card_subtitle: item.card_subtitle || item.info
             }));
         } catch (error: any) {
-            console.error(`[DoubanService] Error fetching popular ${type}s:`, error.response?.data || error.message);
+            console.error(`[DoubanService] Error fetching collection ${collectionId}:`, error.response?.data || error.message);
             return [];
         }
     }
+
+    async getCharts(): Promise<{ weekly: DoubanMedia[], new: DoubanMedia[] }> {
+    console.log('[DoubanService] Fetching charts: weekly and new movies');
+    const [weekly, newMovies] = await Promise.all([
+      this.getCollectionItems('movie_weekly_best', 'movie', 0, 10),
+      this.getCollectionItems('movie_hot', 'movie', 0, 10)
+    ]);
+    return { weekly, new: newMovies };
+  }
 
     async search(query: string, start = 0, count = 20): Promise<DoubanMedia[]> {
         try {

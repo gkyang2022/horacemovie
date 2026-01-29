@@ -32,3 +32,7 @@ export const searchDouban = (q: string, start = 0, count = 20): Promise<DoubanMe
 export const getDetail = (type: string, id: string): Promise<DoubanMedia> => {
   return request.get(`/douban/detail/${type}/${id}`);
 };
+
+export const getCharts = (): Promise<{ weekly: DoubanMedia[], new: DoubanMedia[] }> => {
+  return request.get('/douban/charts');
+};

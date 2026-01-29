@@ -39,3 +39,9 @@ export const getDetail = async (req: Request, res: Response) => {
     }
     res.json(result);
 };
+
+export const getCharts = async (req: Request, res: Response) => {
+    console.log('[DoubanController] GET /api/douban/charts');
+    const result = await doubanService.getCharts();
+    res.json(result);
+};

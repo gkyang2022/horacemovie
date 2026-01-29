@@ -253,16 +253,23 @@ export class DoubanService {
     }
 
     async getDetail(id: string, type: string): Promise<DoubanMedia | null> {
-        const cacheKey = `detail_${type}_${id}`;
+        // 映射类型到豆瓣 API 真实的资源路径
+        // 豆瓣纪录片、综艺、动画在详情接口中通常被归类为 'tv' 或 'movie'
+        let effectiveType = type;
+        if (['variety', 'animation', 'documentary'].includes(type)) {
+            effectiveType = 'tv';
+        }
+
+        const cacheKey = `detail_${effectiveType}_${id}`;
         const cachedData = this.cache.get<DoubanMedia>(cacheKey);
         if (cachedData) {
-            console.log(`[DoubanService] Returning cached detail for ${type} (ID: ${id})`);
+            console.log(`[DoubanService] Returning cached detail for ${effectiveType} (ID: ${id})`);
             return cachedData;
         }
 
         try {
-            console.log(`[DoubanService] Fetching detail for ${type} (ID: ${id})`);
-            const url = `${DOUBAN_API_HOST}/${type}/${id}`;
+            console.log(`[DoubanService] Fetching detail for ${effectiveType} (ID: ${id})`);
+            const url = `${DOUBAN_API_HOST}/${effectiveType}/${id}`;
             const response = await axios.get(url, {
                 params: {
                     apiKey: API_KEY
@@ -280,7 +287,7 @@ export class DoubanService {
             const result = {
                 id: item.id,
                 title: item.title,
-                type: type,
+                type: type, // 保持原始业务类型
                 rating: item.rating ? item.rating.value : 0,
                 rating_count: item.rating ? item.rating.count : 0,
                 poster: this.getProxyPoster(item.cover_url || item.cover?.url || item.pic?.normal),
@@ -302,6 +309,11 @@ export class DoubanService {
             }
             return result;
         } catch (error: any) {
+            // 如果映射为 tv 失败，尝试作为 movie 再请求一次（部分纪录片可能是电影长片）
+            if (effectiveType === 'tv' && error.response?.status === 404) {
+                console.log(`[DoubanService] Detail not found as TV, retrying as movie (ID: ${id})`);
+                return this.getDetail(id, 'movie');
+            }
             console.error(`[DoubanService] Error fetching detail for ${id}:`, error.response?.data || error.message);
             return null;
         }

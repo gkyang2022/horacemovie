@@ -65,18 +65,30 @@ export class DoubanService {
         return processedUrl.replace(/([^:])\/\//g, '$1/');
     }
 
-    async getPopular(type: 'movie' | 'tv' | 'variety' | 'animation' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> {
+    async getPopular(type: 'movie' | 'tv' | 'variety' | 'animation' | 'showing' | 'soon' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> {
         try {
             console.log(`[DoubanService] Fetching popular ${type}s (start: ${start}, count: ${count})`);
             let collectionId = 'movie_hot_gaia';
+            let mediaType: string = type;
+            
             switch (type) {
                 case 'tv': collectionId = 'tv_hot'; break;
                 case 'variety': collectionId = 'tv_variety_show'; break;
                 case 'animation': collectionId = 'tv_animation'; break;
-                default: collectionId = 'movie_hot_gaia';
+                case 'showing': 
+                    collectionId = 'movie_showing'; 
+                    mediaType = 'movie';
+                    break;
+                case 'soon': 
+                    collectionId = 'movie_soon'; 
+                    mediaType = 'movie';
+                    break;
+                default: 
+                    collectionId = 'movie_hot_gaia';
+                    mediaType = 'movie';
             }
             
-            return this.getCollectionItems(collectionId, type, start, count);
+            return this.getCollectionItems(collectionId, mediaType, start, count);
         } catch (error: any) {
             console.error(`[DoubanService] Error fetching popular ${type}s:`, error.message);
             return [];
@@ -115,13 +127,20 @@ export class DoubanService {
         }
     }
 
-    async getCharts(): Promise<{ weekly: DoubanMedia[], new: DoubanMedia[] }> {
-    console.log('[DoubanService] Fetching charts: weekly and new movies');
-    const [weekly, newMovies] = await Promise.all([
+    async getCharts(): Promise<{ 
+      weekly: DoubanMedia[], 
+      new: DoubanMedia[],
+      tvChinese: DoubanMedia[],
+      tvGlobal: DoubanMedia[]
+    }> {
+    console.log('[DoubanService] Fetching charts: weekly, new movies, and TV shows');
+    const [weekly, newMovies, tvChinese, tvGlobal] = await Promise.all([
       this.getCollectionItems('movie_weekly_best', 'movie', 0, 10),
-      this.getCollectionItems('movie_hot', 'movie', 0, 10)
+      this.getCollectionItems('movie_hot', 'movie', 0, 10),
+      this.getCollectionItems('tv_chinese_best_weekly', 'tv', 0, 10),
+      this.getCollectionItems('tv_global_best_weekly', 'tv', 0, 10)
     ]);
-    return { weekly, new: newMovies };
+    return { weekly, new: newMovies, tvChinese, tvGlobal };
   }
 
     async search(query: string, start = 0, count = 20): Promise<DoubanMedia[]> {

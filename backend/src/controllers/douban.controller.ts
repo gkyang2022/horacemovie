@@ -4,7 +4,7 @@ import { DoubanService } from '../services/douban.service.js';
 const doubanService = DoubanService.getInstance();
 
 export const getPopular = async (req: Request, res: Response) => {
-    const type = (req.query.type as 'movie' | 'tv' | 'variety' | 'animation') || 'movie';
+    const type = (req.query.type as 'movie' | 'tv' | 'variety' | 'animation' | 'showing' | 'soon') || 'movie';
     const start = parseInt(req.query.start as string) || 0;
     const count = parseInt(req.query.count as string) || 20;
 

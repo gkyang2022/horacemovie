@@ -80,6 +80,48 @@
           </div>
         </div>
       </div>
+
+      <div class="sidebar-section" v-loading="loadingCharts">
+        <div class="sidebar-header">
+          <h3 class="sidebar-title">华语口碑剧集榜</h3>
+        </div>
+        <div class="chart-list">
+          <div 
+            v-for="(item, index) in charts.tvChinese" 
+            :key="item.id" 
+            class="chart-item"
+            @click="goToDetail(item, 'tv')"
+          >
+            <span class="chart-rank" :class="{ 'top-three': index < 3 }">{{ index + 1 }}</span>
+            <div class="chart-item-info">
+              <span class="chart-item-title">{{ item.title }}</span>
+              <span class="chart-item-subtitle">{{ item.card_subtitle || item.year }}</span>
+            </div>
+            <span class="chart-item-rating">{{ item.rating }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section" v-loading="loadingCharts">
+        <div class="sidebar-header">
+          <h3 class="sidebar-title">全球口碑剧集榜</h3>
+        </div>
+        <div class="chart-list">
+          <div 
+            v-for="(item, index) in charts.tvGlobal" 
+            :key="item.id" 
+            class="chart-item"
+            @click="goToDetail(item, 'tv')"
+          >
+            <span class="chart-rank" :class="{ 'top-three': index < 3 }">{{ index + 1 }}</span>
+            <div class="chart-item-info">
+              <span class="chart-item-title">{{ item.title }}</span>
+              <span class="chart-item-subtitle">{{ item.card_subtitle || item.year }}</span>
+            </div>
+            <span class="chart-item-rating">{{ item.rating }}</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -91,7 +133,7 @@ import { getPopular, getCharts, type DoubanMedia } from '../api/douban';
 
 const router = useRouter();
 
-type Category = 'movie' | 'tv' | 'variety' | 'animation';
+type Category = 'movie' | 'tv' | 'variety' | 'animation' | 'showing' | 'soon';
 
 interface Section {
   title: string;
@@ -99,6 +141,8 @@ interface Section {
 }
 
 const sections: Section[] = [
+  { title: '正在上映', type: 'showing' },
+  { title: '即将上映', type: 'soon' },
   { title: '热门电影', type: 'movie' },
   { title: '热门电视剧', type: 'tv' },
   { title: '热门综艺', type: 'variety' },
@@ -110,11 +154,20 @@ const data = reactive<Record<Category, DoubanMedia[]>>({
   tv: [],
   variety: [],
   animation: [],
+  showing: [],
+  soon: [],
 });
 
-const charts = reactive<{ weekly: DoubanMedia[], new: DoubanMedia[] }>({
+const charts = reactive<{ 
+  weekly: DoubanMedia[], 
+  new: DoubanMedia[],
+  tvChinese: DoubanMedia[],
+  tvGlobal: DoubanMedia[]
+}>({
   weekly: [],
   new: [],
+  tvChinese: [],
+  tvGlobal: [],
 });
 
 const loading = reactive<Record<Category, boolean>>({
@@ -122,6 +175,8 @@ const loading = reactive<Record<Category, boolean>>({
   tv: false,
   variety: false,
   animation: false,
+  showing: false,
+  soon: false,
 });
 
 const loadingCharts = ref(false);
@@ -143,6 +198,8 @@ const fetchChartsData = async () => {
     const res = await getCharts();
     charts.weekly = res.weekly;
     charts.new = res.new;
+    charts.tvChinese = res.tvChinese;
+    charts.tvGlobal = res.tvGlobal;
   } catch (error) {
     console.error('Failed to fetch charts:', error);
   } finally {

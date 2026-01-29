@@ -21,7 +21,7 @@ export interface DoubanMedia {
   episodes_count?: number;
 }
 
-export const getPopular = (type: 'movie' | 'tv' | 'variety' | 'animation' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> => {
+export const getPopular = (type: 'movie' | 'tv' | 'variety' | 'animation' | 'showing' | 'soon' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> => {
   return request.get('/douban/popular', { params: { type, start, count } });
 };
 
@@ -33,6 +33,11 @@ export const getDetail = (type: string, id: string): Promise<DoubanMedia> => {
   return request.get(`/douban/detail/${type}/${id}`);
 };
 
-export const getCharts = (): Promise<{ weekly: DoubanMedia[], new: DoubanMedia[] }> => {
+export const getCharts = (): Promise<{ 
+  weekly: DoubanMedia[], 
+  new: DoubanMedia[],
+  tvChinese: DoubanMedia[],
+  tvGlobal: DoubanMedia[]
+}> => {
   return request.get('/douban/charts');
 };

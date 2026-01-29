@@ -70,7 +70,7 @@ export class DoubanService {
         return processedUrl.replace(/([^:])\/\//g, '$1/');
     }
 
-    async getPopular(type: 'movie' | 'tv' | 'variety' | 'animation' | 'documentary' | 'showing' | 'soon' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> {
+    async getPopular(type: 'movie' | 'tv' | 'variety' | 'animation' | 'documentary' | 'showing' | 'soon' | 'movie_latest' | 'movie_score' | 'movie_unpopular' | 'tv_hot' | 'tv_latest' | 'tv_score' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> {
         const cacheKey = `popular_${type}_${start}_${count}`;
         const cachedData = this.cache.get<DoubanMedia[]>(cacheKey);
         if (cachedData) {
@@ -81,19 +81,52 @@ export class DoubanService {
         try {
             console.log(`[DoubanService] Fetching popular ${type}s (start: ${start}, count: ${count})`);
             let collectionId = 'movie_hot_gaia';
-            let mediaType: string = type;
+            let mediaType: string = 'movie';
             
             switch (type) {
-                case 'tv': collectionId = 'tv_hot'; break;
-                case 'variety': collectionId = 'tv_variety_show'; break;
-                case 'animation': collectionId = 'tv_animation'; break;
-                case 'documentary': collectionId = 'tv_documentary'; break;
+                case 'tv': 
+                case 'tv_hot':
+                    collectionId = 'tv_hot'; 
+                    mediaType = 'tv';
+                    break;
+                case 'tv_latest':
+                    collectionId = 'tv_domestic_hot'; // Approximating latest with domestic hot
+                    mediaType = 'tv';
+                    break;
+                case 'tv_score':
+                    collectionId = 'tv_chinese_best_weekly';
+                    mediaType = 'tv';
+                    break;
+                case 'variety': 
+                    collectionId = 'tv_variety_show'; 
+                    mediaType = 'tv';
+                    break;
+                case 'animation': 
+                    collectionId = 'tv_animation'; 
+                    mediaType = 'tv';
+                    break;
+                case 'documentary': 
+                    collectionId = 'tv_documentary'; 
+                    mediaType = 'tv';
+                    break;
                 case 'showing': 
                     collectionId = 'movie_showing'; 
                     mediaType = 'movie';
                     break;
                 case 'soon': 
                     collectionId = 'movie_soon'; 
+                    mediaType = 'movie';
+                    break;
+                case 'movie_latest':
+                    collectionId = 'movie_latest_hot';
+                    mediaType = 'movie';
+                    break;
+                case 'movie_score':
+                    collectionId = 'movie_score';
+                    mediaType = 'movie';
+                    break;
+                case 'movie_unpopular':
+                    collectionId = 'movie_unpopular';
                     mediaType = 'movie';
                     break;
                 default: 

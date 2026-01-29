@@ -17,6 +17,9 @@
               @click="activeMovieTab = 'soon'"
             >即将上映</h2>
           </div>
+          <el-button link type="primary" class="view-more" @click="goToExplore(activeMovieTab === 'showing' ? 'showing' : 'soon')">
+            查看更多 <el-icon><ArrowRight /></el-icon>
+          </el-button>
         </div>
         
         <div class="media-row-container" v-loading="loading[activeMovieTab]">
@@ -56,6 +59,9 @@
       <div v-for="section in otherSections" :key="section.type" class="section">
         <div class="section-header">
           <h2 class="section-title">{{ section.title }}</h2>
+          <el-button link type="primary" class="view-more" @click="goToExplore(section.type)">
+            查看更多 <el-icon><ArrowRight /></el-icon>
+          </el-button>
         </div>
         
         <div class="media-row-container" v-loading="loading[section.type]">
@@ -181,6 +187,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { ArrowRight } from '@element-plus/icons-vue';
 import { getPopular, getCharts, type DoubanMedia } from '../api/douban';
 
 const router = useRouter();
@@ -281,6 +288,14 @@ const goToDetail = (item: DoubanMedia, defaultType: string) => {
   router.push(`/detail/${item.type || defaultType}/${item.id}`);
 };
 
+const goToExplore = (type: string) => {
+  if (type === 'showing' || type === 'soon') {
+    router.push(`/showing?type=${type}`);
+  } else {
+    router.push(`/explore?type=${type}`);
+  }
+};
+
 onMounted(() => {
   sections.forEach(s => fetchSectionData(s.type));
   fetchChartsData();
@@ -335,6 +350,21 @@ onMounted(() => {
   height: 20px;
   background: #409eff;
   border-radius: 2px;
+}
+
+.view-more {
+  font-size: 14px;
+  font-weight: normal;
+  color: #409eff;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.3s;
+}
+
+.view-more:hover {
+  opacity: 0.8;
+  transform: translateX(4px);
 }
 
 .media-row-container {

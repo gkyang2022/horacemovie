@@ -22,6 +22,16 @@ const routes = [
         component: () => import('../views/Detail.vue')
       },
       {
+        path: 'explore',
+        name: 'Explore',
+        component: () => import('../views/Explore.vue')
+      },
+      {
+        path: 'showing',
+        name: 'MovieShowing',
+        component: () => import('../views/MovieShowing.vue')
+      },
+      {
         path: 'settings',
         name: 'Settings',
         component: () => import('../views/Settings.vue')

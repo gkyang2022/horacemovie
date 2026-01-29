@@ -38,6 +38,8 @@ export class OpenListService {
             const response = await axios.post(`${baseUrl}/api/auth/login`, {
                 username,
                 password
+            }, {
+                timeout: 30000
             });
 
             if (response.data && response.data.code === 200) {
@@ -63,7 +65,8 @@ export class OpenListService {
             }, {
                 headers: {
                     'Authorization': token
-                }
+                },
+                timeout: 30000
             });
 
             if (response.data && response.data.code === 200) {
@@ -105,7 +108,8 @@ export class OpenListService {
             }, {
                 headers: {
                     'Authorization': token
-                }
+                },
+                timeout: 30000
             });
 
             if (response.data && response.data.code !== 200) {

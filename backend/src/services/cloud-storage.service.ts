@@ -54,7 +54,7 @@ export class CloudStorageService {
                         'Cookie': cookie,
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
                     },
-                    timeout: 5000
+                    timeout: 30000
                 });
                 if (snapRes.data && snapRes.data.state && snapRes.data.data) {
                     // 提取顶级文件/目录名
@@ -78,7 +78,7 @@ export class CloudStorageService {
                         'Origin': domain,
                         'Referer': shareUrl
                     },
-                    timeout: 10000
+                    timeout: 30000
                 }
             );
 
@@ -161,7 +161,7 @@ export class CloudStorageService {
                     passcode: passCode
                 }, {
                     headers: getHeaders(targetDomain),
-                    timeout: 5000
+                    timeout: 30000
                 });
 
                 if (tokenRes.data && tokenRes.data.status === 200 && tokenRes.data.data) {
@@ -195,7 +195,7 @@ export class CloudStorageService {
                 console.log(`[CloudStorageService] Step 2: Fetching Quark details from ${targetDomain}`);
                 const detailRes = await axios.get(`${targetDomain}/1/clouddrive/share/sharepage/detail?${commonParams}&stoken=${stoken}&pwd_id=${shareId}&_pdir_fid=0`, {
                     headers: getHeaders(targetDomain),
-                    timeout: 5000
+                    timeout: 30000
                 });
 
                 if (detailRes.data && detailRes.data.status === 200 && detailRes.data.data) {
@@ -244,7 +244,7 @@ export class CloudStorageService {
                 console.log(`[CloudStorageService] Step 3: Executing Quark save via ${targetDomain}`);
                 return await axios.post(`${targetDomain}/1/clouddrive/share/sharepage/save?${commonParams}`, saveParams, {
                     headers: getHeaders(targetDomain),
-                    timeout: 10000
+                    timeout: 30000
                 });
             };
 

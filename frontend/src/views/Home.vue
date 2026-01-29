@@ -291,6 +291,8 @@ const goToDetail = (item: DoubanMedia, defaultType: string) => {
 const goToExplore = (type: string) => {
   if (type === 'showing' || type === 'soon') {
     router.push(`/showing?type=${type}`);
+  } else if (type === 'documentary') {
+    router.push('/documentary');
   } else {
     router.push(`/explore?type=${type}`);
   }

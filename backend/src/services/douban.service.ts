@@ -1,10 +1,13 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
+import NodeCache from 'node-cache';
 
 dotenv.config();
 
 const DOUBAN_API_HOST = 'https://frodo.douban.com/api/v2';
 const API_KEY = '0ac44ae016490db2204ce0a042db2916'; // Key used for MicroMessenger referer
+
+const CACHE_TTL = 12 * 60 * 60; // 12 hours in seconds
 
 export interface DoubanMedia {
     id: string;
@@ -30,9 +33,11 @@ export interface DoubanMedia {
 export class DoubanService {
     private static instance: DoubanService;
     private imageProxy: string;
+    private cache: NodeCache;
 
     private constructor() {
         this.imageProxy = process.env.IMAGE_PROXY_BASE || 'https://img.doubanio.cmliussss.com/';
+        this.cache = new NodeCache({ stdTTL: CACHE_TTL, checkperiod: 600 });
     }
 
     public static getInstance(): DoubanService {
@@ -66,6 +71,13 @@ export class DoubanService {
     }
 
     async getPopular(type: 'movie' | 'tv' | 'variety' | 'animation' | 'showing' | 'soon' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> {
+        const cacheKey = `popular_${type}_${start}_${count}`;
+        const cachedData = this.cache.get<DoubanMedia[]>(cacheKey);
+        if (cachedData) {
+            console.log(`[DoubanService] Returning cached popular ${type}`);
+            return cachedData;
+        }
+
         try {
             console.log(`[DoubanService] Fetching popular ${type}s (start: ${start}, count: ${count})`);
             let collectionId = 'movie_hot_gaia';
@@ -88,7 +100,11 @@ export class DoubanService {
                     mediaType = 'movie';
             }
             
-            return this.getCollectionItems(collectionId, mediaType, start, count);
+            const result = await this.getCollectionItems(collectionId, mediaType, start, count);
+            if (result && result.length > 0) {
+                this.cache.set(cacheKey, result);
+            }
+            return result;
         } catch (error: any) {
             console.error(`[DoubanService] Error fetching popular ${type}s:`, error.message);
             return [];
@@ -134,6 +150,19 @@ export class DoubanService {
       tvChinese: DoubanMedia[],
       tvGlobal: DoubanMedia[]
     }> {
+    const cacheKey = 'charts_data';
+    const cachedData = this.cache.get<{
+      weekly: DoubanMedia[], 
+      new: DoubanMedia[],
+      tvChinese: DoubanMedia[],
+      tvGlobal: DoubanMedia[]
+    }>(cacheKey);
+    
+    if (cachedData) {
+      console.log('[DoubanService] Returning cached charts data');
+      return cachedData;
+    }
+
     console.log('[DoubanService] Fetching charts: weekly, new movies, and TV shows');
     const [weekly, newMovies, tvChinese, tvGlobal] = await Promise.all([
       this.getCollectionItems('movie_weekly_best', 'movie', 0, 10),
@@ -141,7 +170,14 @@ export class DoubanService {
       this.getCollectionItems('tv_chinese_best_weekly', 'tv', 0, 10),
       this.getCollectionItems('tv_global_best_weekly', 'tv', 0, 10)
     ]);
-    return { weekly, new: newMovies, tvChinese, tvGlobal };
+    
+    const result = { weekly, new: newMovies, tvChinese, tvGlobal };
+    
+    // 只有当至少有一个列表不为空时才缓存，确保不会缓存完全错误的状态
+    if (weekly.length > 0 || newMovies.length > 0 || tvChinese.length > 0 || tvGlobal.length > 0) {
+      this.cache.set(cacheKey, result);
+    }
+    return result;
   }
 
     async search(query: string, start = 0, count = 20): Promise<DoubanMedia[]> {
@@ -216,6 +252,13 @@ export class DoubanService {
     }
 
     async getDetail(id: string, type: string): Promise<DoubanMedia | null> {
+        const cacheKey = `detail_${type}_${id}`;
+        const cachedData = this.cache.get<DoubanMedia>(cacheKey);
+        if (cachedData) {
+            console.log(`[DoubanService] Returning cached detail for ${type} (ID: ${id})`);
+            return cachedData;
+        }
+
         try {
             console.log(`[DoubanService] Fetching detail for ${type} (ID: ${id})`);
             const url = `${DOUBAN_API_HOST}/${type}/${id}`;
@@ -233,7 +276,7 @@ export class DoubanService {
             const item = response.data;
             console.log(`[DoubanService] Successfully fetched detail for: ${item.title}`);
             
-            return {
+            const result = {
                 id: item.id,
                 title: item.title,
                 type: type,
@@ -252,6 +295,11 @@ export class DoubanService {
                 url: item.url || `https://movie.douban.com/subject/${item.id}/`,
                 episodes_count: item.episodes_count || 0
             };
+ 
+            if (result && result.title) {
+                this.cache.set(cacheKey, result);
+            }
+            return result;
         } catch (error: any) {
             console.error(`[DoubanService] Error fetching detail for ${id}:`, error.response?.data || error.message);
             return null;

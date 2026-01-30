@@ -84,7 +84,10 @@ export const getRecommendations = async (req: Request, res: Response) => {
     }
     if (req.query.format && req.query.format !== 'all') {
         categories['形式'] = req.query.format;
-        tagList.push(req.query.format as string);
+        // 如果是综艺，且已经有具体类型，则不把“综艺”放入 tags，以匹配豆瓣行为
+        if (!(req.query.format === '综艺' && req.query.category && req.query.category !== 'all')) {
+            tagList.push(req.query.format as string);
+        }
     }
     if (req.query.region && req.query.region !== 'all') {
         categories['地区'] = req.query.region;

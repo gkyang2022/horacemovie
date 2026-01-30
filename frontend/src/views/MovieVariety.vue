@@ -23,14 +23,14 @@
       <!-- 筛选器 (仅在“全部” Tab 显示) -->
       <div v-if="activeTab === 'all'" class="filters-section">
         <div class="filter-group">
-          <div class="filter-label">形式</div>
+          <div class="filter-label">类型</div>
           <div class="filter-options">
             <span 
-              v-for="item in formats" 
+              v-for="item in varietyTypes" 
               :key="item.value"
               class="filter-item"
-              :class="{ active: currentFilters.format === item.value }"
-              @click="handleFilterChange('format', item.value)"
+              :class="{ active: currentFilters.type === item.value }"
+              @click="handleFilterChange('type', item.value)"
             >
               {{ item.label }}
             </span>
@@ -166,39 +166,41 @@ const hotSubTabs = [
   { label: '国外', value: 'show_foreign' }
 ];
 
-const formats = [
+const varietyTypes = [
   { label: '全部', value: 'all' },
-  { label: '电影', value: '电影' },
-  { label: '电视剧', value: '电视剧' },
-  { label: '综艺', value: '综艺' },
-  { label: '其它', value: '其它' }
+  { label: '真人秀', value: '真人秀' },
+  { label: '脱口秀', value: '脱口秀' },
+  { label: '音乐', value: '音乐' },
+  { label: '歌舞', value: '歌舞' }
 ];
 
 const regions = [
   { label: '全部', value: 'all' },
-  { label: '中国大陆', value: '中国大陆' },
-  { label: '美国', value: '美国' },
-  { label: '日本', value: '日本' },
+  { label: '华语', value: '华语' },
+  { label: '欧美', value: '欧美' },
   { label: '韩国', value: '韩国' },
+  { label: '日本', value: '日本' },
+  { label: '中国大陆', value: '中国大陆' },
+  { label: '中国香港', value: '中国香港' },
+  { label: '美国', value: '美国' },
   { label: '英国', value: '英国' },
+  { label: '泰国', value: '泰国' },
+  { label: '中国台湾', value: '中国台湾' },
   { label: '法国', value: '法国' },
   { label: '德国', value: '德国' },
   { label: '意大利', value: '意大利' },
   { label: '西班牙', value: '西班牙' },
-  { label: '印度', value: '印度' },
-  { label: '泰国', value: '泰国' },
   { label: '俄罗斯', value: '俄罗斯' },
-  { label: '伊朗', value: '伊朗' },
   { label: '加拿大', value: '加拿大' },
   { label: '澳大利亚', value: '澳大利亚' },
-  { label: '爱尔兰', value: '爱尔兰' },
-  { label: '瑞典', value: '瑞典' },
   { label: '巴西', value: '巴西' },
   { label: '丹麦', value: '丹麦' }
 ];
 
 const years = [
   { label: '全部', value: 'all' },
+  { label: '2020年代', value: '2020年代' },
+  { label: '2025', value: '2025' },
   { label: '2024', value: '2024' },
   { label: '2023', value: '2023' },
   { label: '2022', value: '2022' },
@@ -221,15 +223,11 @@ const platforms = [
   { label: '优酷', value: '优酷' },
   { label: '芒果TV', value: '芒果TV' },
   { label: '哔哩哔哩', value: '哔哩哔哩' },
-  { label: '电影网', value: '电影网' },
-  { label: '乐视', value: '乐视' },
   { label: 'Netflix', value: 'Netflix' },
+  { label: 'HBO', value: 'HBO' },
   { label: 'Disney+', value: 'Disney+' },
   { label: 'Apple TV+', value: 'Apple TV+' },
-  { label: 'HBO', value: 'HBO' },
   { label: 'Amazon', value: 'Amazon' },
-  { label: 'Paramount+', value: 'Paramount+' },
-  { label: 'Hulu', value: 'Hulu' },
   { label: 'YouTube', value: 'YouTube' }
 ];
 
@@ -241,7 +239,7 @@ const sortOptions = [
 ];
 
 const currentFilters = reactive({
-  format: 'all',
+  type: 'all',
   region: 'all',
   year: 'all',
   platform: 'all'
@@ -267,7 +265,7 @@ const handleHotSubTabChange = (value: string) => {
   refreshData();
 };
 
-const handleFilterChange = (key: 'format' | 'region' | 'year' | 'platform', value: string) => {
+const handleFilterChange = (key: 'type' | 'region' | 'year' | 'platform', value: string) => {
   if (currentFilters[key] === value) return;
   currentFilters[key] = value;
   refreshData();
@@ -300,8 +298,8 @@ const fetchData = async (isMore = false) => {
     } else {
       res = await getRecommendations({
         kind: 'tv',
-        category: '综艺',
-        format: currentFilters.format,
+        category: currentFilters.type === 'all' ? '' : currentFilters.type,
+        format: '综艺',
         region: currentFilters.region,
         year: currentFilters.year,
         platform: currentFilters.platform,

@@ -297,6 +297,8 @@ const goToExplore = (type: string) => {
     router.push('/animation');
   } else if (type === 'variety') {
     router.push('/variety');
+  } else if (type === 'tv') {
+    router.push('/tv');
   } else {
     router.push(`/explore?type=${type}`);
   }

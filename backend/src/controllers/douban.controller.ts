@@ -5,11 +5,21 @@ const doubanService = DoubanService.getInstance();
 
 export const getPopular = async (req: Request, res: Response) => {
     const type = (req.query.type as 'movie' | 'tv' | 'variety' | 'animation' | 'documentary' | 'showing' | 'soon') || 'movie';
+    const subType = req.query.sub_type as string;
     const start = parseInt(req.query.start as string) || 0;
     const count = parseInt(req.query.count as string) || 20;
 
-    console.log(`[DoubanController] GET /api/douban/popular?type=${type}&start=${start}&count=${count}`);
-    const result = await doubanService.getPopular(type, start, count);
+    console.log(`[DoubanController] GET /api/douban/popular?type=${type}&sub_type=${subType || ''}&start=${start}&count=${count}`);
+    
+    let result;
+    if (type === 'tv' && subType) {
+        // 如果是电视剧且有子类型，使用 rexxar 的 recent_hot 接口
+        result = await doubanService.getRecentHot('tv', subType, start, count);
+    } else {
+        // 综合或其他情况，使用原有的 popular 接口
+        result = await doubanService.getPopular(type, start, count);
+    }
+    
     res.json(result);
 };
 
@@ -88,6 +98,11 @@ export const getRecommendations = async (req: Request, res: Response) => {
 
     // 如果是动画且 kind 是 tv，但没有指定形式，默认加上“电视剧”形式（匹配豆瓣 API 行为）
     if (req.query.category === '动画' && kind === 'tv' && !categories['形式']) {
+        categories['形式'] = '电视剧';
+    }
+
+    // 电视剧频道（不带特定分类或带有通用电视剧分类时）自动补全“电视剧”形式
+    if (kind === 'tv' && !categories['形式']) {
         categories['形式'] = '电视剧';
     }
 

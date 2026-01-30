@@ -387,7 +387,8 @@ export class DoubanService {
                     item.id && 
                     item.id.toString().length > 0 && 
                     item.type !== 'tags' && 
-                    item.type !== 'playlist'
+                    item.type !== 'playlist' && 
+                    item.type !== 'chart'
                 ) // 必须存在有效 ID，且排除 tags 和 playlist 类型
                 .map((item: any) => ({
                     id: item.id,
@@ -446,7 +447,8 @@ export class DoubanService {
                     item.id && 
                     item.id.toString().length > 0 && 
                     item.type !== 'tags' && 
-                    item.type !== 'playlist'
+                    item.type !== 'playlist' && 
+                    item.type !== 'chart'
                 ) // 必须存在有效 ID，且排除 tags 和 playlist 类型
                 .map((item: any) => ({
                     id: item.id,

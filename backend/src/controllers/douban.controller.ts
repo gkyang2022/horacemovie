@@ -108,8 +108,13 @@ export const getRecommendations = async (req: Request, res: Response) => {
     }
 
     // 电视剧频道（不带特定分类或带有通用电视剧分类时）自动补全“电视剧”形式
-    if (kind === 'tv' && !categories['形式']) {
+    if (kind === 'tv' && !categories['形式'] && req.query.category !== '纪录片') {
         categories['形式'] = '电视剧';
+    }
+
+    // 如果是纪录片，且 kind 是 movie，确保 tags 包含“纪录片”
+    if (req.query.category === '纪录片' && kind === 'movie' && !tagList.includes('纪录片')) {
+        tagList.unshift('纪录片');
     }
 
     const tags = tagList.join(',');

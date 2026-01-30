@@ -2,9 +2,22 @@
   <div class="variety-container">
     <div class="variety-header">
       <div class="tabs-titles">
-        <h1 class="page-title tab-title" :class="{ active: activeTab === 'popular' }" @click="handleTabChange('popular')">热门综艺</h1>
+        <span class="tab-title" :class="{ active: activeTab === 'popular' }" @click="handleTabChange('popular')">热门综艺</span>
         <span class="tab-divider">|</span>
-        <h1 class="page-title tab-title" :class="{ active: activeTab === 'all' }" @click="handleTabChange('all')">全部</h1>
+        <span class="tab-title" :class="{ active: activeTab === 'all' }" @click="handleTabChange('all')">全部</span>
+      </div>
+
+      <!-- 热门剧集子选项卡 -->
+      <div v-if="activeTab === 'popular'" class="sub-tabs">
+        <span 
+          v-for="sub in hotSubTabs" 
+          :key="sub.value"
+          class="sub-tab-item"
+          :class="{ active: activeHotSubTab === sub.value }"
+          @click="handleHotSubTabChange(sub.value)"
+        >
+          {{ sub.label }}
+        </span>
       </div>
 
       <!-- 筛选器 (仅在“全部” Tab 显示) -->
@@ -139,12 +152,19 @@ const router = useRouter();
 const route = useRoute();
 
 const activeTab = ref<'popular' | 'all'>((route.query.tab as 'popular' | 'all') || 'popular');
+const activeHotSubTab = ref<string>((route.query.sub_type as string) || 'show');
 const loading = ref(false);
 const loadingMore = ref(false);
 const items = ref<DoubanMedia[]>([]);
 const start = ref(0);
 const count = 20;
 const noMore = ref(false);
+
+const hotSubTabs = [
+  { label: '综合', value: 'show' },
+  { label: '国内', value: 'show_domestic' },
+  { label: '国外', value: 'show_foreign' }
+];
 
 const formats = [
   { label: '全部', value: 'all' },
@@ -231,7 +251,19 @@ const currentSort = ref('T');
 const handleTabChange = (tab: 'popular' | 'all') => {
   if (activeTab.value === tab) return;
   activeTab.value = tab;
-  router.replace({ query: { ...route.query, tab } });
+  // 切换主标签时保留或清除 sub_type
+  const newQuery: any = { ...route.query, tab };
+  if (tab === 'all') {
+    delete newQuery.sub_type;
+  }
+  router.replace({ query: newQuery });
+  refreshData();
+};
+
+const handleHotSubTabChange = (value: string) => {
+  if (activeHotSubTab.value === value) return;
+  activeHotSubTab.value = value;
+  router.replace({ query: { ...route.query, sub_type: value || undefined } });
   refreshData();
 };
 
@@ -264,7 +296,7 @@ const fetchData = async (isMore = false) => {
   try {
     let res: DoubanMedia[] = [];
     if (activeTab.value === 'popular') {
-      res = await getPopular('variety', start.value, count);
+      res = await getPopular('variety', start.value, count, activeHotSubTab.value);
     } else {
       res = await getRecommendations({
         kind: 'tv',
@@ -318,33 +350,40 @@ onMounted(() => {
   margin-bottom: 30px;
 }
 
-.tabs-titles {
+.sub-tabs {
   display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 25px;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding: 0 5px;
 }
 
-.tab-title {
+.sub-tab-item {
+  font-size: 15px;
+  color: #606266;
   cursor: pointer;
-  color: #909399;
-  transition: all 0.3s;
-  margin-bottom: 0;
-  font-size: 24px;
+  padding: 4px 0;
+  position: relative;
+  transition: all 0.2s;
 }
 
-.tab-title:hover {
+.sub-tab-item:hover {
   color: #409eff;
 }
 
-.tab-title.active {
-  color: #303133;
+.sub-tab-item.active {
+  color: #409eff;
   font-weight: 600;
 }
 
-.tab-divider {
-  color: #dcdfe6;
-  font-size: 20px;
+.sub-tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #409eff;
+  border-radius: 2px;
 }
 
 .filters-section {

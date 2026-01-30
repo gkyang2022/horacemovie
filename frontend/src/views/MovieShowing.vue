@@ -2,17 +2,17 @@
   <div class="showing-container">
     <div class="showing-header">
       <div class="tabs-titles">
-        <h1 
-          class="page-title tab-title" 
+        <span 
+          class="tab-title" 
           :class="{ active: activeTab === 'showing' }"
           @click="handleTabChange('showing')"
-        >正在上映</h1>
+        >正在上映</span>
         <span class="tab-divider">|</span>
-        <h1 
-          class="page-title tab-title" 
+        <span 
+          class="tab-title" 
           :class="{ active: activeTab === 'soon' }"
           @click="handleTabChange('soon')"
-        >即将上映</h1>
+        >即将上映</span>
       </div>
     </div>
 
@@ -165,43 +165,6 @@ watch(() => route.query.type, () => {
 
 .showing-header {
   margin-bottom: 30px;
-}
-
-.tabs-titles {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 600;
-  color: #909399;
-  cursor: pointer;
-  margin: 0;
-  transition: all 0.3s;
-  position: relative;
-}
-
-.tab-title.active {
-  color: #303133;
-}
-
-.tab-title.active::after {
-  content: '';
-  position: absolute;
-  bottom: -6px;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: #409eff;
-  border-radius: 2px;
-}
-
-.tab-divider {
-  font-size: 24px;
-  color: #dcdfe6;
-  font-weight: 300;
 }
 
 .showing-content {

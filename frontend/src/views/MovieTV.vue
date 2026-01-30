@@ -2,9 +2,9 @@
   <div class="tv-container">
     <div class="tv-header">
       <div class="tabs-titles">
-        <h1 class="page-title tab-title" :class="{ active: activeTab === 'popular' }" @click="handleTabChange('popular')">热门剧集</h1>
+        <span class="tab-title" :class="{ active: activeTab === 'popular' }" @click="handleTabChange('popular')">热门剧集</span>
         <span class="tab-divider">|</span>
-        <h1 class="page-title tab-title" :class="{ active: activeTab === 'all' }" @click="handleTabChange('all')">全部</h1>
+        <span class="tab-title" :class="{ active: activeTab === 'all' }" @click="handleTabChange('all')">全部</span>
       </div>
 
       <!-- 热门子选项卡 -->
@@ -152,7 +152,7 @@ const router = useRouter();
 const route = useRoute();
 
 const activeTab = ref<'popular' | 'all'>((route.query.tab as 'popular' | 'all') || 'popular');
-const activeHotSubTab = ref<string>((route.query.sub_type as string) || '');
+const activeHotSubTab = ref<string>((route.query.sub_type as string) || 'tv');
 const loading = ref(false);
 const loadingMore = ref(false);
 const items = ref<DoubanMedia[]>([]);
@@ -161,7 +161,7 @@ const count = 20;
 const noMore = ref(false);
 
 const hotSubTabs = [
-  { label: '综合', value: '' },
+  { label: '综合', value: 'tv' },
   { label: '国产剧', value: 'tv_domestic' },
   { label: '欧美剧', value: 'tv_american' },
   { label: '日剧', value: 'tv_japanese' },
@@ -367,64 +367,40 @@ onMounted(() => {
   margin-bottom: 30px;
 }
 
-.tabs-titles {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 25px;
-}
-
-.tab-title {
-  cursor: pointer;
-  color: #909399;
-  transition: all 0.3s;
-  margin-bottom: 0;
-  font-size: 24px;
-}
-
-.tab-title:hover {
-  color: #409eff;
-}
-
-.tab-title.active {
-  color: #303133;
-  font-weight: 600;
-}
-
-.tab-divider {
-  color: #dcdfe6;
-  font-size: 20px;
-}
-
 .sub-tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  margin-bottom: 25px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #f0f0f0;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding: 0 5px;
 }
 
 .sub-tab-item {
   font-size: 15px;
   color: #606266;
   cursor: pointer;
-  padding: 6px 16px;
-  border-radius: 20px;
-  background: #f5f7fa;
-  transition: all 0.3s;
+  padding: 4px 0;
+  position: relative;
+  transition: all 0.2s;
 }
 
 .sub-tab-item:hover {
   color: #409eff;
-  background: #ecf5ff;
 }
 
 .sub-tab-item.active {
-  background: #409eff;
-  color: #fff;
-  font-weight: 500;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+  color: #409eff;
+  font-weight: 600;
+}
+
+.sub-tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #409eff;
+  border-radius: 2px;
 }
 
 .filters-section {

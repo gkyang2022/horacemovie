@@ -352,8 +352,8 @@ export class DoubanService {
         }
     }
 
-    async getRecentHot(kind: string, type: string = '', start: number = 0, count: number = 20): Promise<DoubanMedia[]> {
-        const cacheKey = `recent_hot_${kind}_${type}_${start}_${count}`;
+    async getRecentHot(kind: string, type: string = '', start: number = 0, count: number = 20, category: string = ''): Promise<DoubanMedia[]> {
+        const cacheKey = `recent_hot_${kind}_${type}_${start}_${count}_${category}`;
         const cachedData = this.cache.get<DoubanMedia[]>(cacheKey);
         if (cachedData) {
             console.log(`[DoubanService] Returning cached recent hot ${kind} (${type})`);
@@ -361,13 +361,13 @@ export class DoubanService {
         }
 
         try {
-            console.log(`[DoubanService] Fetching recent hot ${kind} (${type}) (start: ${start}, count: ${count})`);
+            console.log(`[DoubanService] Fetching recent hot ${kind} (${type}) (start: ${start}, count: ${count}, category: ${category})`);
             const url = `https://m.douban.com/rexxar/api/v2/subject/recent_hot/${kind}`;
             const response = await axios.get(url, {
                 params: {
                     start,
                     limit: count,
-                    category: kind,
+                    category: category || kind,
                     type: type || undefined,
                     ck: 'Gg7r' // 使用用户提供的 ck 值
                 },

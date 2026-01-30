@@ -2,19 +2,19 @@
   <div class="explore-container">
     <div class="explore-header">
       <div class="tabs-titles">
-        <h1 
-          class="page-title tab-title" 
+        <span 
+          class="tab-title" 
           :class="{ active: activeTab === 'popular' }" 
           @click="handleTabChange('popular')"
         >
           热门{{ currentKind === 'movie' ? '电影' : '电视剧' }}
-        </h1>
+        </span>
         <span class="tab-divider">|</span>
-        <h1 
-          class="page-title tab-title" 
+        <span 
+          class="tab-title" 
           :class="{ active: activeTab === 'all' }" 
           @click="handleTabChange('all')"
-        >全部</h1>
+        >全部</span>
       </div>
       
       <!-- 主类型切换 (电影/电视剧) -->
@@ -420,35 +420,6 @@ watch(() => route.query.type, (newType) => {
 
 .explore-header {
   margin-bottom: 30px;
-}
-
-.tabs-titles {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 25px;
-}
-
-.tab-title {
-  cursor: pointer;
-  color: #909399;
-  transition: all 0.3s;
-  margin-bottom: 0;
-  font-size: 24px;
-}
-
-.tab-title:hover {
-  color: #409eff;
-}
-
-.tab-title.active {
-  color: #303133;
-  font-weight: 600;
-}
-
-.tab-divider {
-  color: #dcdfe6;
-  font-size: 20px;
 }
 
 .main-type-tabs {

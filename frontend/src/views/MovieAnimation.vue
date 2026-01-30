@@ -2,9 +2,9 @@
   <div class="animation-container">
     <div class="animation-header">
       <div class="tabs-titles">
-        <h1 class="page-title tab-title" :class="{ active: activeTab === 'popular' }" @click="handleTabChange('popular')">热门动画</h1>
+        <span class="tab-title" :class="{ active: activeTab === 'popular' }" @click="handleTabChange('popular')">热门动画</span>
         <span class="tab-divider">|</span>
-        <h1 class="page-title tab-title" :class="{ active: activeTab === 'all' }" @click="handleTabChange('all')">全部</h1>
+        <span class="tab-title" :class="{ active: activeTab === 'all' }" @click="handleTabChange('all')">全部</span>
       </div>
 
       <!-- 筛选器 (仅在“全部” Tab 显示) -->
@@ -293,35 +293,6 @@ onMounted(() => {
 
 .animation-header {
   margin-bottom: 30px;
-}
-
-.tabs-titles {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 25px;
-}
-
-.tab-title {
-  cursor: pointer;
-  color: #909399;
-  transition: all 0.3s;
-  margin-bottom: 0;
-  font-size: 24px;
-}
-
-.tab-title:hover {
-  color: #409eff;
-}
-
-.tab-title.active {
-  color: #303133;
-  font-weight: 600;
-}
-
-.tab-divider {
-  color: #dcdfe6;
-  font-size: 20px;
 }
 
 .filters-section {

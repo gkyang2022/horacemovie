@@ -291,51 +291,6 @@ onMounted(() => {
   margin-bottom: 30px;
 }
 
-.tabs-titles {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.tab-title {
-  cursor: pointer;
-  padding: 0;
-  margin: 0;
-  font-size: 28px;
-  font-weight: 600;
-  color: #909399;
-  transition: all 0.3s;
-  position: relative;
-  padding-left: 0;
-  margin-bottom: 0;
-}
-
-.tab-title:hover {
-  color: #303133;
-}
-
-.tab-title.active {
-  color: #303133;
-}
-
-.tab-title.active::after {
-  content: '';
-  position: absolute;
-  bottom: -6px;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: #409eff;
-  border-radius: 2px;
-}
-
-.tab-divider {
-  font-size: 24px;
-  color: #dcdfe6;
-  font-weight: 300;
-}
-
 .filters-section {
   background: #f8f9fb;
   padding: 20px;

@@ -99,7 +99,7 @@ export const getRecommendations = async (req: Request, res: Response) => {
         tagList.push(req.query.region as string);
     }
     if (req.query.year && req.query.year !== 'all') {
-        categories['年代'] = req.query.year;
+        // 根据用户提供的 Rexxar API 示例，年代只出现在 tags 中，不出现在 selected_categories 中
         tagList.push(req.query.year as string);
     }
     if (req.query.platform && req.query.platform !== 'all') {
@@ -120,6 +120,11 @@ export const getRecommendations = async (req: Request, res: Response) => {
     // 如果是纪录片，且 kind 是 movie，确保 tags 包含“纪录片”
     if (req.query.category === '纪录片' && kind === 'movie' && !tagList.includes('纪录片')) {
         tagList.unshift('纪录片');
+    }
+
+    // 确保 movie 类型的请求 selected_categories 中包含“类型”字段
+    if (kind === 'movie' && !categories['类型']) {
+        categories['类型'] = '';
     }
 
     const tags = tagList.join(',');

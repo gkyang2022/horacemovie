@@ -82,7 +82,7 @@
           </div>
         </div>
 
-        <div class="filter-group sort-group">
+        <div class="filter-group">
           <div class="filter-label">排序</div>
           <div class="filter-options">
             <span 
@@ -451,12 +451,6 @@ onMounted(() => {
   background-color: #409eff;
   color: #fff;
   font-weight: 500;
-}
-
-.sort-group {
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid #ebedf0;
 }
 
 .tv-content {

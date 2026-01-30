@@ -57,29 +57,14 @@
       <!-- 多级筛选器 (仅在“全部” Tab 显示) -->
       <div v-if="activeTab === 'all'" class="filters-section">
         <div class="filter-group">
-          <div class="filter-label">形式</div>
-          <div class="filter-options">
-            <span 
-              v-for="item in formats" 
-              :key="item.value"
-              class="filter-item"
-              :class="{ active: currentFilters.format === item.value }"
-              @click="handleFilterChange('format', item.value)"
-            >
-              {{ item.label }}
-            </span>
-          </div>
-        </div>
-
-        <div class="filter-group">
           <div class="filter-label">类型</div>
           <div class="filter-options">
             <span 
-              v-for="item in categories" 
+              v-for="item in genres" 
               :key="item.value"
               class="filter-item"
-              :class="{ active: currentFilters.category === item.value }"
-              @click="handleFilterChange('category', item.value)"
+              :class="{ active: currentFilters.genre === item.value }"
+              @click="handleFilterChange('genre', item.value)"
             >
               {{ item.label }}
             </span>
@@ -117,21 +102,6 @@
         </div>
 
         <div class="filter-group">
-          <div class="filter-label">平台</div>
-          <div class="filter-options">
-            <span 
-              v-for="item in platforms" 
-              :key="item.value"
-              class="filter-item"
-              :class="{ active: currentFilters.platform === item.value }"
-              @click="handleFilterChange('platform', item.value)"
-            >
-              {{ item.label }}
-            </span>
-          </div>
-        </div>
-
-        <div class="filter-group sort-group">
           <div class="filter-label">排序</div>
           <div class="filter-options">
             <span 
@@ -220,70 +190,59 @@ const hotSubTabs = [
   { label: '日本', value: '日本' }
 ];
 
-const formats = [
+const genres = [
   { label: '全部', value: 'all' },
-  { label: '电影', value: '电影' },
-  { label: '电视剧', value: '电视剧' },
-  { label: '综艺', value: '综艺' },
+  { label: '喜剧', value: '喜剧' },
+  { label: '爱情', value: '爱情' },
+  { label: '动作', value: '动作' },
+  { label: '科幻', value: '科幻' },
   { label: '动画', value: '动画' },
+  { label: '悬疑', value: '悬疑' },
+  { label: '犯罪', value: '犯罪' },
+  { label: '惊悚', value: '惊悚' },
+  { label: '冒险', value: '冒险' },
+  { label: '音乐', value: '音乐' },
+  { label: '历史', value: '历史' },
+  { label: '奇幻', value: '奇幻' },
+  { label: '恐怖', value: '恐怖' },
+  { label: '战争', value: '战争' },
+  { label: '传记', value: '传记' },
+  { label: '歌舞', value: '歌舞' },
+  { label: '武侠', value: '武侠' },
+  { label: '情色', value: '情色' },
+  { label: '灾难', value: '灾难' },
+  { label: '西部', value: '西部' },
   { label: '纪录片', value: '纪录片' },
   { label: '短片', value: '短片' }
 ];
 
-const categories = [
-  { label: '全部', value: 'all' },
-  { label: '剧情', value: '剧情' },
-  { label: '喜剧', value: '喜剧' },
-  { label: '动作', value: '动作' },
-  { label: '爱情', value: '爱情' },
-  { label: '科幻', value: '科幻' },
-  { label: '动画', value: '动画' },
-  { label: '悬疑', value: '悬疑' },
-  { label: '惊悚', value: '惊悚' },
-  { label: '恐怖', value: '恐怖' },
-  { label: '纪录片', value: '纪录片' },
-  { label: '犯罪', value: '犯罪' },
-  { label: '奇幻', value: '奇幻' },
-  { label: '冒险', value: '冒险' },
-  { label: '灾难', value: '灾难' },
-  { label: '武侠', value: '武侠' },
-  { label: '古装', value: '古装' },
-  { label: '家庭', value: '家庭' },
-  { label: '传记', value: '传记' },
-  { label: '历史', value: '历史' },
-  { label: '战争', value: '战争' },
-  { label: '歌舞', value: '歌舞' },
-  { label: '音乐', value: '音乐' },
-  { label: '西部', value: '西部' },
-  { label: '运动', value: '运动' },
-  { label: '传记', value: '传记' }
-];
-
 const regions = [
   { label: '全部', value: 'all' },
-  { label: '中国大陆', value: '中国大陆' },
-  { label: '美国', value: '美国' },
-  { label: '日本', value: '日本' },
+  { label: '华语', value: '华语' },
+  { label: '欧美', value: '欧美' },
   { label: '韩国', value: '韩国' },
+  { label: '日本', value: '日本' },
+  { label: '中国大陆', value: '中国大陆' },
+  { label: '中国香港', value: '中国香港' },
+  { label: '美国', value: '美国' },
   { label: '英国', value: '英国' },
+  { label: '泰国', value: '泰国' },
+  { label: '中国台湾', value: '中国台湾' },
   { label: '法国', value: '法国' },
   { label: '德国', value: '德国' },
   { label: '意大利', value: '意大利' },
   { label: '西班牙', value: '西班牙' },
-  { label: '印度', value: '印度' },
-  { label: '泰国', value: '泰国' },
   { label: '俄罗斯', value: '俄罗斯' },
-  { label: '伊朗', value: '伊朗' },
   { label: '加拿大', value: '加拿大' },
   { label: '澳大利亚', value: '澳大利亚' },
-  { label: '爱尔兰', value: '爱尔兰' },
-  { label: '瑞典', value: '瑞典' },
   { label: '巴西', value: '巴西' },
   { label: '丹麦', value: '丹麦' }
 ];
 
 const years = [
   { label: '全部', value: 'all' },
+  { label: '2020年代', value: '2020年代' },
+  { label: '2025', value: '2025' },
   { label: '2024', value: '2024' },
   { label: '2023', value: '2023' },
   { label: '2022', value: '2022' },
@@ -299,38 +258,17 @@ const years = [
   { label: '更早', value: '更早' }
 ];
 
-const platforms = [
-  { label: '全部', value: 'all' },
-  { label: '腾讯视频', value: '腾讯视频' },
-  { label: '爱奇艺', value: '爱奇艺' },
-  { label: '优酷', value: '优酷' },
-  { label: '芒果TV', value: '芒果TV' },
-  { label: '哔哩哔哩', value: '哔哩哔哩' },
-  { label: '电影网', value: '电影网' },
-  { label: '乐视', value: '乐视' },
-  { label: 'Netflix', value: 'Netflix' },
-  { label: 'Disney+', value: 'Disney+' },
-  { label: 'Apple TV+', value: 'Apple TV+' },
-  { label: 'HBO', value: 'HBO' },
-  { label: 'Amazon', value: 'Amazon' },
-  { label: 'Paramount+', value: 'Paramount+' },
-  { label: 'Hulu', value: 'Hulu' },
-  { label: 'YouTube', value: 'YouTube' }
-];
-
 const sortOptions = [
   { label: '综合排序', value: 'T' },
   { label: '近期热度', value: 'U' },
   { label: '首播时间', value: 'R' },
-  { label: '高分优先', value: 'G' }
+  { label: '高分优先', value: 'S' }
 ];
 
 const currentFilters = reactive({
-  format: 'all',
-  category: 'all',
+  genre: 'all',
   region: 'all',
-  year: 'all',
-  platform: 'all'
+  year: 'all'
 });
 
 const handleHotSubTabChange = (value: string) => {
@@ -353,9 +291,9 @@ const handleTabChange = (tab: 'popular' | 'latest' | 'top' | 'unpopular' | 'all'
   refreshData();
 };
 
-const handleFilterChange = (key: keyof typeof currentFilters, value: string) => {
+const handleFilterChange = (key: 'genre' | 'region' | 'year', value: string) => {
   if (currentFilters[key] === value) return;
-  (currentFilters[key] as string) = value;
+  currentFilters[key] = value;
   refreshData();
 };
 
@@ -393,11 +331,9 @@ const fetchData = async (isMore = false) => {
     } else {
       res = await getRecommendations({
         kind: currentKind.value,
-        category: currentFilters.category === 'all' ? undefined : currentFilters.category,
-        format: currentFilters.format === 'all' ? undefined : currentFilters.format,
+        category: currentFilters.genre === 'all' ? undefined : currentFilters.genre,
         region: currentFilters.region === 'all' ? undefined : currentFilters.region,
         year: currentFilters.year === 'all' ? undefined : currentFilters.year,
-        platform: currentFilters.platform === 'all' ? undefined : currentFilters.platform,
         sort: currentSort.value,
         start: start.value,
         count: count
@@ -527,12 +463,6 @@ onMounted(() => {
   background-color: #409eff;
   color: #fff;
   font-weight: 500;
-}
-
-.sort-group {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #ebedf0;
 }
 
 .explore-content {

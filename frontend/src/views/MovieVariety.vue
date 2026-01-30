@@ -82,7 +82,7 @@
           </div>
         </div>
 
-        <div class="filter-group sort-group">
+        <div class="filter-group">
           <div class="filter-label">排序</div>
           <div class="filter-options">
             <span 

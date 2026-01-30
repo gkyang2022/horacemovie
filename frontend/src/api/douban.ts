@@ -21,8 +21,8 @@ export interface DoubanMedia {
   episodes_count?: number;
 }
 
-export const getPopular = (type: string = 'movie', start = 0, count = 20, sub_type: string = ''): Promise<DoubanMedia[]> => {
-  return request.get('/douban/popular', { params: { type, start, count, sub_type } });
+export const getPopular = (type: string = 'movie', start = 0, count = 20, sub_type: string = '', category: string = ''): Promise<DoubanMedia[]> => {
+  return request.get('/douban/popular', { params: { type, start, count, sub_type, category } });
 };
 
 export const searchDouban = (q: string, start = 0, count = 20): Promise<DoubanMedia[]> => {

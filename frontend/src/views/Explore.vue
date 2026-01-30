@@ -12,13 +12,37 @@
         <span class="tab-divider">|</span>
         <span 
           class="tab-title" 
+          :class="{ active: activeTab === 'latest' }" 
+          @click="handleTabChange('latest')"
+        >
+          最新电影
+        </span>
+        <span class="tab-divider">|</span>
+        <span 
+          class="tab-title" 
+          :class="{ active: activeTab === 'top' }" 
+          @click="handleTabChange('top')"
+        >
+          豆瓣高分
+        </span>
+        <span class="tab-divider">|</span>
+        <span 
+          class="tab-title" 
+          :class="{ active: activeTab === 'unpopular' }" 
+          @click="handleTabChange('unpopular')"
+        >
+          冷门佳片
+        </span>
+        <span class="tab-divider">|</span>
+        <span 
+          class="tab-title" 
           :class="{ active: activeTab === 'all' }" 
           @click="handleTabChange('all')"
         >全部</span>
       </div>
 
-      <!-- 热门电影的子标签 (仅在“热门电影” Tab 显示) -->
-      <div v-if="activeTab === 'popular'" class="sub-tabs">
+      <!-- 热门/最新/高分/冷门电影的子标签 (在对应 Tab 显示) -->
+      <div v-if="activeTab === 'popular' || activeTab === 'latest' || activeTab === 'top' || activeTab === 'unpopular'" class="sub-tabs">
         <span 
           v-for="tab in hotSubTabs" 
           :key="tab.value"
@@ -184,7 +208,7 @@ const count = 20;
 const noMore = ref(false);
 
 const currentKind = ref<'movie' | 'tv'>('movie');
-const activeTab = ref<'popular' | 'all'>((route.query.tab as 'popular' | 'all') || 'popular');
+const activeTab = ref<'popular' | 'latest' | 'top' | 'unpopular' | 'all'>((route.query.tab as 'popular' | 'latest' | 'top' | 'unpopular' | 'all') || 'popular');
 const activeHotSubTab = ref<string>((route.query.sub_type as string) || '全部');
 const currentSort = ref('T');
 
@@ -316,10 +340,16 @@ const handleHotSubTabChange = (value: string) => {
   refreshData();
 };
 
-const handleTabChange = (tab: 'popular' | 'all') => {
+const handleTabChange = (tab: 'popular' | 'latest' | 'top' | 'unpopular' | 'all') => {
   if (activeTab.value === tab) return;
   activeTab.value = tab;
-  router.replace({ query: { ...route.query, tab } });
+  // 切换大 Tab 时，重置子 Tab 为“全部”
+  if (tab === 'popular' || tab === 'latest' || tab === 'top' || tab === 'unpopular') {
+    activeHotSubTab.value = '全部';
+    router.replace({ query: { ...route.query, tab, sub_type: undefined } });
+  } else {
+    router.replace({ query: { ...route.query, tab } });
+  }
   refreshData();
 };
 
@@ -351,8 +381,15 @@ const fetchData = async (isMore = false) => {
 
   try {
     let res: DoubanMedia[] = [];
-    if (activeTab.value === 'popular') {
-      res = await getPopular('movie', start.value, count, activeHotSubTab.value);
+    if (activeTab.value === 'popular' || activeTab.value === 'latest' || activeTab.value === 'top' || activeTab.value === 'unpopular') {
+      const categoryMap: Record<string, string> = {
+        'popular': '热门',
+        'latest': '最新',
+        'top': '豆瓣高分',
+        'unpopular': '冷门佳片'
+      };
+      const category = categoryMap[activeTab.value];
+      res = await getPopular('movie', start.value, count, activeHotSubTab.value, category);
     } else {
       res = await getRecommendations({
         kind: currentKind.value,

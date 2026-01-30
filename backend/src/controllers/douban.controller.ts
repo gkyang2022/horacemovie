@@ -6,10 +6,11 @@ const doubanService = DoubanService.getInstance();
 export const getPopular = async (req: Request, res: Response) => {
     const type = (req.query.type as 'movie' | 'tv' | 'variety' | 'animation' | 'documentary' | 'showing' | 'soon') || 'movie';
     const subType = req.query.sub_type as string;
+    const category = req.query.category as string;
     const start = parseInt(req.query.start as string) || 0;
     const count = parseInt(req.query.count as string) || 20;
 
-    console.log(`[DoubanController] GET /api/douban/popular?type=${type}&sub_type=${subType || ''}&start=${start}&count=${count}`);
+    console.log(`[DoubanController] GET /api/douban/popular?type=${type}&sub_type=${subType || ''}&category=${category || ''}&start=${start}&count=${count}`);
     
     let result;
     if (type === 'tv' && subType) {
@@ -19,8 +20,9 @@ export const getPopular = async (req: Request, res: Response) => {
         // 如果是综艺且有子类型，使用 rexxar 的 recent_hot 接口，category 固定为 show
         result = await doubanService.getRecentHot('tv', subType, start, count, 'show');
     } else if (type === 'movie' && subType) {
-        // 如果是电影且有子类型，使用 rexxar 的 recent_hot 接口，category 固定为 热门
-        result = await doubanService.getRecentHot('movie', subType, start, count, '热门');
+        // 如果是电影且有子类型，使用 rexxar 的 recent_hot 接口
+        // 如果前端传了 category（如“最新”），则使用传过来的，否则默认为“热门”
+        result = await doubanService.getRecentHot('movie', subType, start, count, category || '热门');
     } else {
         // 综合或其他情况，使用原有的 popular 接口
         result = await doubanService.getPopular(type, start, count);

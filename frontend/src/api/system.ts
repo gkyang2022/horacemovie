@@ -6,7 +6,7 @@ export const updateSettings = (data: any) => request.post('/settings', data);
 export const getCloudAccounts = () => request.get('/settings/cloud-accounts');
 export const updateCloudAccount = (data: any) => request.post('/settings/cloud-accounts', data);
 
-export const searchPansou = (q: string) => request.get<any, any[]>('/search', { params: { q } });
+export const searchPansou = (q: string, refresh?: boolean) => request.get<any, any[]>('/search', { params: { q, refresh: refresh ? true : undefined } });
 
 export const saveToCloud = (data: { shareUrl: string, type: string, mediaName: string }) => 
   request.post<any, { message: string }>('/transfer/save', data);

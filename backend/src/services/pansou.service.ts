@@ -22,7 +22,7 @@ export class PansouService {
         return PansouService.instance;
     }
 
-    async search(keyword: string): Promise<SearchResource[]> {
+    async search(keyword: string, refresh = false): Promise<SearchResource[]> {
         const db = getDb();
         const pansouUrlSetting = await db.get('SELECT value FROM settings WHERE key = ?', 'pansou_url');
         
@@ -41,12 +41,13 @@ export class PansouService {
         const apiUrl = baseUrl.includes('/api/search') ? baseUrl : `${baseUrl}/api/search`;
 
         try {
-            console.log(`[PansouService] Searching Pansou at: ${apiUrl} with kw: "${keyword}"`);
+            console.log(`[PansouService] Searching Pansou at: ${apiUrl} with kw: "${keyword}" (refresh: ${refresh})`);
             // According to fish2018/pansou documentation, POST /api/search with {"kw": "..."} is preferred.
             // Adding cloud_types to filter for specific cloud providers.
             const response = await axios.post(apiUrl, {
                 kw: keyword,
-                cloud_types: ['115', 'quark'] // Only 115 and Quark as requested
+                cloud_types: ['115', 'quark'],
+                refresh: refresh ? true : undefined
             }, {
                 headers: {
                     'Content-Type': 'application/json'

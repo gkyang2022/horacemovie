@@ -72,7 +72,13 @@
     </div>
 
     <!-- Resource Search Results -->
-    <el-dialog v-model="resourceDialog" title="资源搜索结果" width="85%" class="resource-dialog">
+    <el-dialog v-model="resourceDialog" width="85%" class="resource-dialog">
+      <template #header>
+        <div class="resource-dialog-header">
+          <span class="resource-dialog-title">资源搜索结果</span>
+          <el-button class="resource-refresh-button" :icon="Refresh" circle size="small" :loading="searchLoading" :disabled="!detail" @click="handleRefreshResource" />
+        </div>
+      </template>
       <el-tabs v-model="activeTab" class="resource-tabs">
         <el-tab-pane v-for="tab in resourceTabsWithCounts" :key="tab.key" :label="tab.label" :name="tab.key">
           <el-table :data="filteredResources" v-loading="searchLoading" height="500">
@@ -116,6 +122,7 @@ import { useRoute } from 'vue-router';
 import { getDetail, type DoubanMedia } from '../api/douban';
 import { searchPansou, saveToCloud } from '../api/system';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Refresh } from '@element-plus/icons-vue';
 
 const route = useRoute();
 const detail = ref<DoubanMedia | null>(null);
@@ -188,13 +195,13 @@ const fetchData = async () => {
   }
 };
 
-const handleSearchResource = async () => {
+const executeResourceSearch = async (forceRefresh = false) => {
   if (!detail.value) return;
   resourceDialog.value = true;
   searchLoading.value = true;
   resources.value = []; // Clear previous results
   try {
-    const data = await searchPansou(detail.value.title);
+    const data = await searchPansou(detail.value.title, forceRefresh);
     resources.value = (data as any[]).map(item => ({
       ...item,
       type: getCloudTypeFromResource(item)
@@ -210,6 +217,14 @@ const handleSearchResource = async () => {
   } finally {
     searchLoading.value = false;
   }
+};
+
+const handleSearchResource = async () => {
+  await executeResourceSearch(false);
+};
+
+const handleRefreshResource = async () => {
+  await executeResourceSearch(true);
 };
 
 const handleTrack = () => {
@@ -374,6 +389,22 @@ onMounted(() => {
 .resource-link {
   word-break: break-all;
   font-size: 12px;
+}
+
+.resource-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.resource-dialog-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.resource-refresh-button {
+  margin-left: 4px;
 }
 
 .resource-tabs {

@@ -351,4 +351,56 @@ export class DoubanService {
             return null;
         }
     }
+
+    async getRecommendations(kind: string, categories: any = {}, sort: string = 'T', start: number = 0, count: number = 20, tags: string = '', score_range: string = '0,10'): Promise<DoubanMedia[]> {
+        const cacheKey = `recommendations_${kind}_${JSON.stringify(categories)}_${sort}_${start}_${count}_${tags}_${score_range}`;
+        const cachedData = this.cache.get<DoubanMedia[]>(cacheKey);
+        if (cachedData) {
+            console.log(`[DoubanService] Returning cached recommendations for ${kind}`);
+            return cachedData;
+        }
+
+        try {
+            console.log(`[DoubanService] Fetching recommendations for ${kind} (start: ${start}, count: ${count}, categories: ${JSON.stringify(categories)}, tags: ${tags})`);
+            const url = `https://m.douban.com/rexxar/api/v2/${kind}/recommend`;
+            const response = await axios.get(url, {
+                params: {
+                    refresh: 0,
+                    start,
+                    count,
+                    selected_categories: JSON.stringify(categories),
+                    uncollect: false,
+                    sort,
+                    tags,
+                    score_range,
+                    ck: ''
+                },
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/04.1',
+                    'Referer': `https://m.douban.com/${kind}/explore`
+                },
+                timeout: 10000
+            });
+
+            const items = response.data.items || [];
+            const result = items.map((item: any) => ({
+                id: item.id,
+                title: item.title,
+                type: item.type || (kind === 'movie' ? 'movie' : 'tv'),
+                rating: item.rating ? item.rating.value : 0,
+                poster: this.getProxyPoster(item.cover?.url || item.pic?.normal || item.cover_url),
+                year: item.year || '',
+                card_subtitle: item.card_subtitle || item.info,
+                pubdate: item.pubdate || (item.release_date ? [item.release_date] : [])
+            }));
+
+            if (result && result.length > 0) {
+                this.cache.set(cacheKey, result);
+            }
+            return result;
+        } catch (error: any) {
+            console.error(`[DoubanService] Error fetching recommendations:`, error.response?.data || error.message);
+            return [];
+        }
+    }
 }

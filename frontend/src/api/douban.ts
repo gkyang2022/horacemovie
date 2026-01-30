@@ -41,3 +41,17 @@ export const getCharts = (): Promise<{
 }> => {
   return request.get('/douban/charts');
 };
+
+export const getRecommendations = (params: {
+  kind: string;
+  category?: string;
+  format?: string;
+  region?: string;
+  year?: string;
+  platform?: string;
+  sort?: string;
+  start?: number;
+  count?: number;
+}): Promise<DoubanMedia[]> => {
+  return request.get('/douban/recommendations', { params });
+};

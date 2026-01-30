@@ -293,6 +293,10 @@ const goToExplore = (type: string) => {
     router.push(`/showing?type=${type}`);
   } else if (type === 'documentary') {
     router.push('/documentary');
+  } else if (type === 'animation') {
+    router.push('/animation');
+  } else if (type === 'variety') {
+    router.push('/variety');
   } else {
     router.push(`/explore?type=${type}`);
   }

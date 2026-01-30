@@ -62,13 +62,6 @@ const start = ref(0);
 const count = 20;
 const noMore = ref(false);
 
-const refreshData = () => {
-  start.value = 0;
-  items.value = [];
-  noMore.value = false;
-  fetchData();
-};
-
 const fetchData = async (isMore = false) => {
   if (isMore) {
     loadingMore.value = true;
@@ -78,6 +71,7 @@ const fetchData = async (isMore = false) => {
 
   try {
     const res = await getPopular('documentary', start.value, count);
+    
     if (res.length < count) {
       noMore.value = true;
     }
@@ -98,7 +92,7 @@ const fetchData = async (isMore = false) => {
 };
 
 const goToDetail = (item: DoubanMedia) => {
-  router.push(`/detail/documentary/${item.id}`);
+  router.push(`/detail/${item.type || 'movie'}/${item.id}`);
 };
 
 onMounted(() => {
@@ -130,7 +124,7 @@ onMounted(() => {
 
 .media-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 25px;
   margin-bottom: 40px;
 }
@@ -180,7 +174,7 @@ onMounted(() => {
 }
 
 .title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: #303133;
   overflow: hidden;
@@ -216,7 +210,7 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .media-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 15px;
   }
 }

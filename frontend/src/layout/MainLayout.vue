@@ -5,6 +5,7 @@
       <el-menu mode="horizontal" :router="true" :default-active="$route.path" class="menu">
         <el-menu-item index="/">首页</el-menu-item>
         <el-menu-item index="/search">搜索</el-menu-item>
+        <el-menu-item index="/rank">排行榜</el-menu-item>
         <el-menu-item index="/tracker">资源追踪</el-menu-item>
         <el-menu-item index="/settings">设置</el-menu-item>
       </el-menu>

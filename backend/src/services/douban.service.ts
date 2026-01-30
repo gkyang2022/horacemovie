@@ -470,4 +470,63 @@ export class DoubanService {
             return [];
         }
     }
+
+    async getTopList(type: string, intervalId: string, start: number = 0, count: number = 20): Promise<DoubanMedia[]> {
+        const cacheKey = `top_list_${type}_${intervalId}_${start}_${count}`;
+        const cachedData = this.cache.get<DoubanMedia[]>(cacheKey);
+        if (cachedData) {
+            console.log(`[DoubanService] Returning cached top list for ${type} ${intervalId}`);
+            return cachedData;
+        }
+
+        try {
+            console.log(`[DoubanService] Fetching top list for ${type} ${intervalId} (start: ${start}, count: ${count})`);
+            const url = 'https://movie.douban.com/j/chart/top_list';
+            const response = await axios.get(url, {
+                params: {
+                    type,
+                    interval_id: intervalId,
+                    action: '',
+                    start,
+                    limit: count
+                },
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+                    'Referer': 'https://movie.douban.com/chart'
+                },
+                timeout: 10000
+            });
+
+            const items = Array.isArray(response.data) ? response.data : [];
+            const result = items
+                .filter((item: any) => item && item.id && item.title)
+                .map((item: any) => {
+                    const releaseDate = item.release_date || '';
+                    const year = releaseDate ? releaseDate.slice(0, 4) : '';
+                    const regionsText = Array.isArray(item.regions) ? item.regions.join(' ') : '';
+                    const typesText = Array.isArray(item.types) ? item.types.join(' ') : '';
+                    const actorsText = Array.isArray(item.actors) ? item.actors.join(' ') : '';
+                    const scoreValue = item.score || (Array.isArray(item.rating) ? item.rating[0] : '');
+                    const subtitle = `${year} / ${regionsText} / ${typesText} / ${actorsText}`;
+                    return {
+                        id: item.id,
+                        title: item.title,
+                        type: 'movie',
+                        rating: parseFloat(scoreValue) || 0,
+                        poster: this.getProxyPoster(item.cover_url),
+                        year,
+                        card_subtitle: subtitle,
+                        url: item.url || `https://movie.douban.com/subject/${item.id}/`
+                    };
+                });
+
+            if (result.length > 0) {
+                this.cache.set(cacheKey, result);
+            }
+            return result;
+        } catch (error: any) {
+            console.error(`[DoubanService] Error fetching top list:`, error.response?.data || error.message);
+            return [];
+        }
+    }
 }

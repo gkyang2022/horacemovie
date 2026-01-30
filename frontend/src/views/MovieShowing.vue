@@ -249,9 +249,11 @@ watch(() => route.query.type, () => {
   font-size: 13px;
   color: #909399;
   margin-top: 4px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .load-more {

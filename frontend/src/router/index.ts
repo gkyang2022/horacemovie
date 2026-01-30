@@ -17,6 +17,11 @@ const routes = [
         component: () => import('../views/Search.vue')
       },
       {
+        path: 'rank',
+        name: 'Rank',
+        component: () => import('../views/Rank.vue')
+      },
+      {
         path: 'detail/:type/:id',
         name: 'Detail',
         component: () => import('../views/Detail.vue')
@@ -75,7 +80,7 @@ const router = createRouter({
   routes
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const user = localStorage.getItem('user');
   if (to.path !== '/login' && !user) {
     next('/login');

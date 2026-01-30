@@ -64,6 +64,17 @@ export const getCharts = async (req: Request, res: Response) => {
     res.json(result);
 };
 
+export const getTopList = async (req: Request, res: Response) => {
+    const type = (req.query.type as string) || '24';
+    const intervalId = (req.query.interval_id as string) || '100:90';
+    const start = parseInt(req.query.start as string) || 0;
+    const count = parseInt(req.query.count as string) || 20;
+
+    console.log(`[DoubanController] GET /api/douban/top-list?type=${type}&interval_id=${intervalId}&start=${start}&count=${count}`);
+    const result = await doubanService.getTopList(type, intervalId, start, count);
+    res.json(result);
+};
+
 export const getRecommendations = async (req: Request, res: Response) => {
     const kind = (req.query.kind as string) || 'movie';
     const sort = (req.query.sort as string) || 'T';

@@ -42,6 +42,15 @@ export const getCharts = (): Promise<{
   return request.get('/douban/charts');
 };
 
+export const getTopList = (params: {
+  type: string;
+  interval_id: string;
+  start?: number;
+  count?: number;
+}): Promise<DoubanMedia[]> => {
+  return request.get('/douban/top-list', { params });
+};
+
 export const getRecommendations = (params: {
   kind: string;
   category?: string;

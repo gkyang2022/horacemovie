@@ -18,6 +18,9 @@ export const getPopular = async (req: Request, res: Response) => {
     } else if (type === 'variety' && subType) {
         // 如果是综艺且有子类型，使用 rexxar 的 recent_hot 接口，category 固定为 show
         result = await doubanService.getRecentHot('tv', subType, start, count, 'show');
+    } else if (type === 'movie' && subType) {
+        // 如果是电影且有子类型，使用 rexxar 的 recent_hot 接口，category 固定为 热门
+        result = await doubanService.getRecentHot('movie', subType, start, count, '热门');
     } else {
         // 综合或其他情况，使用原有的 popular 接口
         result = await doubanService.getPopular(type, start, count);

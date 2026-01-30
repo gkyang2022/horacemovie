@@ -7,7 +7,7 @@
           :class="{ active: activeTab === 'popular' }" 
           @click="handleTabChange('popular')"
         >
-          热门{{ currentKind === 'movie' ? '电影' : '电视剧' }}
+          热门电影
         </span>
         <span class="tab-divider">|</span>
         <span 
@@ -16,20 +16,18 @@
           @click="handleTabChange('all')"
         >全部</span>
       </div>
-      
-      <!-- 主类型切换 (电影/电视剧) -->
-      <div class="main-type-tabs">
+
+      <!-- 热门电影的子标签 (仅在“热门电影” Tab 显示) -->
+      <div v-if="activeTab === 'popular'" class="sub-tabs">
         <span 
-          class="type-tab" 
-          :class="{ active: currentKind === 'movie' }"
-          @click="handleKindChange('movie')"
-        >电影</span>
-        <span class="tab-sep">/</span>
-        <span 
-          class="type-tab" 
-          :class="{ active: currentKind === 'tv' }"
-          @click="handleKindChange('tv')"
-        >电视剧</span>
+          v-for="tab in hotSubTabs" 
+          :key="tab.value"
+          class="sub-tab-item"
+          :class="{ active: activeHotSubTab === tab.value }"
+          @click="handleHotSubTabChange(tab.value)"
+        >
+          {{ tab.label }}
+        </span>
       </div>
 
       <!-- 多级筛选器 (仅在“全部” Tab 显示) -->
@@ -185,9 +183,18 @@ const start = ref(0);
 const count = 20;
 const noMore = ref(false);
 
-const currentKind = ref<'movie' | 'tv'>((route.query.kind as 'movie' | 'tv') || 'movie');
-const activeTab = ref<'popular' | 'all'>((route.query.tab as 'popular' | 'all') || 'all');
+const currentKind = ref<'movie' | 'tv'>('movie');
+const activeTab = ref<'popular' | 'all'>((route.query.tab as 'popular' | 'all') || 'popular');
+const activeHotSubTab = ref<string>((route.query.sub_type as string) || '全部');
 const currentSort = ref('T');
+
+const hotSubTabs = [
+  { label: '全部', value: '全部' },
+  { label: '华语', value: '华语' },
+  { label: '欧美', value: '欧美' },
+  { label: '韩国', value: '韩国' },
+  { label: '日本', value: '日本' }
+];
 
 const formats = [
   { label: '全部', value: 'all' },
@@ -302,10 +309,10 @@ const currentFilters = reactive({
   platform: 'all'
 });
 
-const handleKindChange = (kind: 'movie' | 'tv') => {
-  if (currentKind.value === kind) return;
-  currentKind.value = kind;
-  router.replace({ query: { ...route.query, kind } });
+const handleHotSubTabChange = (value: string) => {
+  if (activeHotSubTab.value === value) return;
+  activeHotSubTab.value = value;
+  router.replace({ query: { ...route.query, sub_type: value } });
   refreshData();
 };
 
@@ -345,7 +352,7 @@ const fetchData = async (isMore = false) => {
   try {
     let res: DoubanMedia[] = [];
     if (activeTab.value === 'popular') {
-      res = await getPopular(currentKind.value, start.value, count);
+      res = await getPopular('movie', start.value, count, activeHotSubTab.value);
     } else {
       res = await getRecommendations({
         kind: currentKind.value,
@@ -384,30 +391,7 @@ const goToDetail = (item: DoubanMedia) => {
 };
 
 onMounted(() => {
-  const type = route.query.type as string;
-  if (type === 'tv') {
-    currentKind.value = 'tv';
-  } else if (['variety', 'animation', 'documentary'].includes(type)) {
-    // 映射到 category
-    const map: Record<string, string> = {
-      'variety': '综艺',
-      'animation': '动画',
-      'documentary': '纪录片'
-    };
-    const category = map[type];
-    if (category) {
-      currentFilters.category = category;
-    }
-    // 动画和纪录片可能是电影也可能是电视剧，这里默认选电影，用户可切
-  }
   fetchData();
-});
-
-watch(() => route.query.type, (newType) => {
-  if (newType === 'movie' || newType === 'tv') {
-    currentKind.value = newType as 'movie' | 'tv';
-  }
-  refreshData();
 });
 </script>
 
@@ -422,27 +406,40 @@ watch(() => route.query.type, (newType) => {
   margin-bottom: 30px;
 }
 
-.main-type-tabs {
+.sub-tabs {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 25px;
-  font-size: 18px;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding: 0 5px;
 }
 
-.type-tab {
+.sub-tab-item {
+  font-size: 15px;
+  color: #606266;
   cursor: pointer;
-  color: #909399;
-  transition: all 0.3s;
+  padding: 4px 0;
+  position: relative;
+  transition: all 0.2s;
 }
 
-.type-tab.active {
-  color: #303133;
+.sub-tab-item:hover {
+  color: #409eff;
+}
+
+.sub-tab-item.active {
+  color: #409eff;
   font-weight: 600;
 }
 
-.tab-sep {
-  color: #dcdfe6;
+.sub-tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #409eff;
+  border-radius: 2px;
 }
 
 .filters-section {

@@ -11,6 +11,8 @@
   --app-text-muted: #909399;
   --app-primary: #409eff;
   --app-primary-soft: #ecf5ff;
+  --app-rank-top-bg: #fef0f0;
+  --app-rank-top-text: #f56c6c;
 }
 
 :root[data-theme='dark'] {
@@ -26,6 +28,8 @@
   --app-text-muted: #9aa0a6;
   --app-primary: #5aa7ff;
   --app-primary-soft: rgba(90, 167, 255, 0.2);
+  --app-rank-top-bg: rgba(245, 108, 108, 0.2);
+  --app-rank-top-text: #f4b4b4;
 }
 
 body {

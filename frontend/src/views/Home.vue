@@ -600,8 +600,8 @@ onMounted(() => {
   }
   
   .chart-rank.top-three {
-    background: #fef0f0;
-    color: #f56c6c;
+    background: var(--app-rank-top-bg);
+    color: var(--app-rank-top-text);
   }
   
   .chart-item-info {

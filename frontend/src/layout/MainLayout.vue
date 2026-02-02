@@ -73,6 +73,9 @@ const toggleTheme = () => {
   align-items: center;
   border-bottom: 1px solid var(--app-border);
   background-color: var(--app-surface);
+  --el-menu-bg-color: var(--app-surface);
+  --el-menu-hover-bg-color: var(--app-surface);
+  --el-menu-active-color: var(--app-primary);
   padding: 0 20px;
 }
 .logo {
@@ -85,6 +88,20 @@ const toggleTheme = () => {
 .menu {
   flex: 1;
   border-bottom: none;
+  background-color: var(--app-surface);
+}
+.menu :deep(.el-menu) {
+  background-color: var(--app-surface);
+  border-bottom: none;
+}
+.menu :deep(.el-menu-item) {
+  background-color: transparent;
+}
+.menu :deep(.el-menu-item.is-active) {
+  background-color: transparent;
+}
+.menu :deep(.el-menu-item:not(.is-disabled):hover) {
+  background-color: transparent;
 }
 .theme-toggle {
   margin-right: 12px;

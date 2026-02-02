@@ -313,10 +313,13 @@ const fetchData = async (isMore = false) => {
 
   try {
     let res: DoubanMedia[] = [];
+    let responseLength = 0;
     if (activeTab.value === 'popular') {
-      res = await getPopular('tv', start.value, count, activeHotSubTab.value);
+      const response = await getPopular('tv', start.value, count, activeHotSubTab.value);
+      res = response.items;
+      responseLength = response.rawCount;
     } else {
-      res = await getRecommendations({
+      const response = await getRecommendations({
         kind: 'tv',
         category: currentFilters.category === 'all' ? undefined : currentFilters.category,
         region: currentFilters.region === 'all' ? undefined : currentFilters.region,
@@ -326,9 +329,11 @@ const fetchData = async (isMore = false) => {
         start: start.value,
         count: count
       });
+      res = response.items;
+      responseLength = response.rawCount;
     }
 
-    if (res.length < count) {
+    if (responseLength < count) {
       noMore.value = true;
     }
     
@@ -338,7 +343,7 @@ const fetchData = async (isMore = false) => {
       items.value = res;
     }
     
-    start.value += res.length;
+    start.value += responseLength;
   } catch (error) {
     console.error('Failed to fetch TV data:', error);
   } finally {

@@ -111,8 +111,10 @@ const fetchData = async (isMore = false) => {
   }
 
   try {
-    const res = await getPopular(activeTab.value, start.value, count);
-    if (res.length < count) {
+    const response = await getPopular(activeTab.value, start.value, count);
+    const res = response.items;
+    const responseLength = response.rawCount;
+    if (responseLength < count) {
       noMore.value = true;
     }
     
@@ -122,7 +124,7 @@ const fetchData = async (isMore = false) => {
       items.value = res;
     }
     
-    start.value += res.length;
+    start.value += responseLength;
   } catch (error) {
     console.error('Failed to fetch showing data:', error);
   } finally {

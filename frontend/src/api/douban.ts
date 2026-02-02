@@ -21,8 +21,28 @@ export interface DoubanMedia {
   episodes_count?: number;
 }
 
-export const getPopular = (type: string = 'movie', start = 0, count = 20, sub_type: string = '', category: string = ''): Promise<DoubanMedia[]> => {
-  return request.get('/douban/popular', { params: { type, start, count, sub_type, category } });
+export interface DoubanListResponse {
+  items: DoubanMedia[];
+  rawCount: number;
+}
+
+const normalizeListResponse = (response: unknown): DoubanListResponse => {
+  if (Array.isArray(response)) {
+    return { items: response, rawCount: response.length };
+  }
+  if (response && typeof response === 'object') {
+    const items = Array.isArray((response as { items?: DoubanMedia[] }).items) ? (response as { items: DoubanMedia[] }).items : [];
+    const rawCount = typeof (response as { rawCount?: number }).rawCount === 'number'
+      ? (response as { rawCount: number }).rawCount
+      : items.length;
+    return { items, rawCount };
+  }
+  return { items: [], rawCount: 0 };
+};
+
+export const getPopular = async (type: string = 'movie', start = 0, count = 20, sub_type: string = '', category: string = ''): Promise<DoubanListResponse> => {
+  const response = await request.get('/douban/popular', { params: { type, start, count, sub_type, category } });
+  return normalizeListResponse(response);
 };
 
 export const searchDouban = (q: string, start = 0, count = 20): Promise<DoubanMedia[]> => {
@@ -51,7 +71,7 @@ export const getTopList = (params: {
   return request.get('/douban/top-list', { params });
 };
 
-export const getRecommendations = (params: {
+export const getRecommendations = async (params: {
   kind: string;
   category?: string;
   format?: string;
@@ -61,6 +81,7 @@ export const getRecommendations = (params: {
   sort?: string;
   start?: number;
   count?: number;
-}): Promise<DoubanMedia[]> => {
-  return request.get('/douban/recommendations', { params });
+}): Promise<DoubanListResponse> => {
+  const response = await request.get('/douban/recommendations', { params });
+  return normalizeListResponse(response);
 };

@@ -237,10 +237,13 @@ const fetchData = async (isMore = false) => {
 
   try {
     let res: DoubanMedia[] = [];
+    let responseLength = 0;
     if (activeTab.value === 'popular') {
-      res = await getPopular('documentary', start.value, count);
+      const response = await getPopular('documentary', start.value, count);
+      res = response.items;
+      responseLength = response.rawCount;
     } else {
-      res = await getRecommendations({
+      const response = await getRecommendations({
         kind: 'movie',
         category: '纪录片',
         region: currentFilters.region,
@@ -250,9 +253,10 @@ const fetchData = async (isMore = false) => {
         start: start.value,
         count: count
       });
+      res = response.items;
+      responseLength = response.rawCount;
     }
-
-    if (res.length < count) {
+    if (responseLength < count) {
       noMore.value = true;
     }
     
@@ -262,7 +266,7 @@ const fetchData = async (isMore = false) => {
       items.value = res;
     }
     
-    start.value += res.length;
+    start.value += responseLength;
   } catch (error) {
     console.error('Failed to fetch documentary data:', error);
   } finally {

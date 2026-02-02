@@ -163,7 +163,8 @@ const fetchData = async (isMore = false) => {
       start: start.value,
       count
     });
-    if (res.length < count) {
+    const responseLength = res.length;
+    if (responseLength < count) {
       noMore.value = true;
     }
     if (isMore) {
@@ -171,7 +172,7 @@ const fetchData = async (isMore = false) => {
     } else {
       items.value = res;
     }
-    start.value += res.length;
+    start.value += responseLength;
   } catch (error) {
     console.error('Failed to fetch rank list:', error);
     items.value = [];

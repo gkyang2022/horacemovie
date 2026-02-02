@@ -319,6 +319,7 @@ const fetchData = async (isMore = false) => {
 
   try {
     let res: DoubanMedia[] = [];
+    let responseLength = 0;
     if (activeTab.value === 'popular' || activeTab.value === 'latest' || activeTab.value === 'top' || activeTab.value === 'unpopular') {
       const categoryMap: Record<string, string> = {
         'popular': '热门',
@@ -327,9 +328,11 @@ const fetchData = async (isMore = false) => {
         'unpopular': '冷门佳片'
       };
       const category = categoryMap[activeTab.value];
-      res = await getPopular('movie', start.value, count, activeHotSubTab.value, category);
+      const response = await getPopular('movie', start.value, count, activeHotSubTab.value, category);
+      res = response.items;
+      responseLength = response.rawCount;
     } else {
-      res = await getRecommendations({
+      const response = await getRecommendations({
         kind: currentKind.value,
         category: currentFilters.genre === 'all' ? undefined : currentFilters.genre,
         region: currentFilters.region === 'all' ? undefined : currentFilters.region,
@@ -338,9 +341,11 @@ const fetchData = async (isMore = false) => {
         start: start.value,
         count: count
       });
+      res = response.items;
+      responseLength = response.rawCount;
     }
 
-    if (res.length < count) {
+    if (responseLength < count) {
       noMore.value = true;
     }
     
@@ -350,7 +355,7 @@ const fetchData = async (isMore = false) => {
       items.value = res;
     }
     
-    start.value += res.length;
+    start.value += responseLength;
   } catch (error) {
     console.error('Failed to fetch explore data:', error);
   } finally {

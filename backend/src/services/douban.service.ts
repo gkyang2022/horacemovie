@@ -30,6 +30,11 @@ export interface DoubanMedia {
     episodes_count?: number;
 }
 
+export interface DoubanListResponse {
+    items: DoubanMedia[];
+    rawCount: number;
+}
+
 export class DoubanService {
     private static instance: DoubanService;
     private imageProxy: string;
@@ -70,9 +75,9 @@ export class DoubanService {
         return processedUrl.replace(/([^:])\/\//g, '$1/');
     }
 
-    async getPopular(type: 'movie' | 'tv' | 'variety' | 'animation' | 'documentary' | 'showing' | 'soon' | 'movie_latest' | 'movie_score' | 'movie_unpopular' | 'tv_hot' | 'tv_latest' | 'tv_score' = 'movie', start = 0, count = 20): Promise<DoubanMedia[]> {
+    async getPopular(type: 'movie' | 'tv' | 'variety' | 'animation' | 'documentary' | 'showing' | 'soon' | 'movie_latest' | 'movie_score' | 'movie_unpopular' | 'tv_hot' | 'tv_latest' | 'tv_score' = 'movie', start = 0, count = 20): Promise<DoubanListResponse> {
         const cacheKey = `popular_${type}_${start}_${count}`;
-        const cachedData = this.cache.get<DoubanMedia[]>(cacheKey);
+        const cachedData = this.cache.get<DoubanListResponse>(cacheKey);
         if (cachedData) {
             console.log(`[DoubanService] Returning cached popular ${type}`);
             return cachedData;
@@ -134,14 +139,15 @@ export class DoubanService {
                     mediaType = 'movie';
             }
             
-            const result = await this.getCollectionItems(collectionId, mediaType, start, count);
-            if (result && result.length > 0) {
+            const items = await this.getCollectionItems(collectionId, mediaType, start, count);
+            const result = { items, rawCount: items.length };
+            if (items.length > 0) {
                 this.cache.set(cacheKey, result);
             }
             return result;
         } catch (error: any) {
             console.error(`[DoubanService] Error fetching popular ${type}s:`, error.message);
-            return [];
+            return { items: [], rawCount: 0 };
         }
     }
 
@@ -352,9 +358,9 @@ export class DoubanService {
         }
     }
 
-    async getRecentHot(kind: string, type: string = '', start: number = 0, count: number = 20, category: string = ''): Promise<DoubanMedia[]> {
+    async getRecentHot(kind: string, type: string = '', start: number = 0, count: number = 20, category: string = ''): Promise<DoubanListResponse> {
         const cacheKey = `recent_hot_${kind}_${type}_${start}_${count}_${category}`;
-        const cachedData = this.cache.get<DoubanMedia[]>(cacheKey);
+        const cachedData = this.cache.get<DoubanListResponse>(cacheKey);
         if (cachedData) {
             console.log(`[DoubanService] Returning cached recent hot ${kind} (${type})`);
             return cachedData;
@@ -381,8 +387,8 @@ export class DoubanService {
             });
 
             // 豆瓣 rexxar API 有时返回 subjects，有时返回 items
-            const items = response.data.subjects || response.data.items || [];
-            const result = items
+            const rawItems = response.data.subjects || response.data.items || [];
+            const items = rawItems
                 .filter((item: any) => 
                     item.id && 
                     item.id.toString().length > 0 && 
@@ -401,19 +407,21 @@ export class DoubanService {
                     pubdate: item.pubdate || (item.release_date ? [item.release_date] : [])
                 }));
 
-            if (result.length > 0) {
+            const result = { items, rawCount: rawItems.length };
+
+            if (items.length > 0) {
                 this.cache.set(cacheKey, result);
             }
             return result;
         } catch (error: any) {
             console.error(`[DoubanService] Error fetching recent hot ${kind}:`, error.response?.data || error.message);
-            return [];
+            return { items: [], rawCount: 0 };
         }
     }
 
-    async getRecommendations(kind: string, categories: any = {}, sort: string = 'T', start: number = 0, count: number = 20, tags: string = '', score_range: string = '0,10'): Promise<DoubanMedia[]> {
+    async getRecommendations(kind: string, categories: any = {}, sort: string = 'T', start: number = 0, count: number = 20, tags: string = '', score_range: string = '0,10'): Promise<DoubanListResponse> {
         const cacheKey = `recommendations_${kind}_${JSON.stringify(categories)}_${sort}_${start}_${count}_${tags}_${score_range}`;
-        const cachedData = this.cache.get<DoubanMedia[]>(cacheKey);
+        const cachedData = this.cache.get<DoubanListResponse>(cacheKey);
         if (cachedData) {
             console.log(`[DoubanService] Returning cached recommendations for ${kind}`);
             return cachedData;
@@ -441,8 +449,8 @@ export class DoubanService {
                 timeout: 10000
             });
 
-            const items = response.data.items || [];
-            const result = items
+            const rawItems = response.data.items || [];
+            const items = rawItems
                 .filter((item: any) => 
                     item.id && 
                     item.id.toString().length > 0 && 
@@ -461,13 +469,15 @@ export class DoubanService {
                     pubdate: item.pubdate || (item.release_date ? [item.release_date] : [])
                 }));
 
-            if (result && result.length > 0) {
+            const result = { items, rawCount: rawItems.length };
+
+            if (items.length > 0) {
                 this.cache.set(cacheKey, result);
             }
             return result;
         } catch (error: any) {
             console.error(`[DoubanService] Error fetching recommendations:`, error.response?.data || error.message);
-            return [];
+            return { items: [], rawCount: 0 };
         }
     }
 

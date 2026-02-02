@@ -261,7 +261,8 @@ const formatPubdate = (pubdate: string) => {
 const fetchSectionData = async (type: Category) => {
   loading[type] = true;
   try {
-    data[type] = await getPopular(type, 0, 18);
+    const res = await getPopular(type, 0, 18);
+    data[type] = res.items;
   } catch (error) {
     console.error(`Failed to fetch ${type}:`, error);
   } finally {

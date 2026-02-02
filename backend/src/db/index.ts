@@ -39,14 +39,6 @@ export async function initDb() {
             value TEXT
         );
 
-        CREATE TABLE IF NOT EXISTS cloud_accounts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            type TEXT NOT NULL, -- '115' or 'quark'
-            name TEXT,
-            cookie TEXT NOT NULL,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-
         CREATE TABLE IF NOT EXISTS tracker_tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,

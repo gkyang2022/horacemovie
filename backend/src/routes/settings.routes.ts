@@ -5,7 +5,5 @@ const router = Router();
 
 router.get('/', settingsController.getSettings);
 router.post('/', settingsController.updateSettings);
-router.get('/cloud-accounts', settingsController.getCloudAccounts);
-router.post('/cloud-accounts', settingsController.updateCloudAccount);
 
 export default router;

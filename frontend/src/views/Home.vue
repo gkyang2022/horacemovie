@@ -343,7 +343,7 @@ onMounted(() => {
 .section-title {
   font-size: 22px;
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text-primary);
   position: relative;
   padding-left: 15px;
 }
@@ -356,14 +356,14 @@ onMounted(() => {
   transform: translateY(-50%);
   width: 4px;
   height: 20px;
-  background: #409eff;
+  background: var(--app-primary);
   border-radius: 2px;
 }
 
 .view-more {
   font-size: 14px;
   font-weight: normal;
-  color: #409eff;
+  color: var(--app-primary);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -387,7 +387,7 @@ onMounted(() => {
   padding: 5px 0 15px 0;
   scroll-behavior: smooth;
   scrollbar-width: thin;
-  scrollbar-color: #dcdfe6 transparent;
+  scrollbar-color: var(--app-border) transparent;
 }
 
 .media-row::-webkit-scrollbar {
@@ -395,7 +395,7 @@ onMounted(() => {
 }
 
 .media-row::-webkit-scrollbar-thumb {
-  background-color: #dcdfe6;
+  background-color: var(--app-border);
   border-radius: 3px;
 }
 
@@ -434,7 +434,7 @@ onMounted(() => {
     padding: 0;
     margin: 0;
     font-size: 22px;
-    color: #909399;
+    color: var(--app-text-muted);
     transition: all 0.3s;
     position: relative;
     padding-left: 0;
@@ -445,7 +445,7 @@ onMounted(() => {
   }
   
   .tab-title.active {
-    color: #303133;
+    color: var(--app-text-primary);
     font-weight: 600;
   }
   
@@ -456,13 +456,13 @@ onMounted(() => {
     left: 0;
     width: 100%;
     height: 3px;
-    background: #409eff;
+    background: var(--app-primary);
     border-radius: 2px;
   }
   
   .tab-divider {
     font-size: 20px;
-    color: #dcdfe6;
+    color: var(--app-border);
     font-weight: 300;
   }
   
@@ -520,7 +520,7 @@ onMounted(() => {
   .title {
     font-size: 14px;
     font-weight: 600;
-    color: #303133;
+    color: var(--app-text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -529,7 +529,7 @@ onMounted(() => {
   
   .subtitle {
     font-size: 12px;
-    color: #909399;
+    color: var(--app-text-muted);
     margin-top: 4px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -541,7 +541,7 @@ onMounted(() => {
   
   /* Sidebar Styles */
   .sidebar-section {
-    background: #fff;
+    background: var(--app-surface);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 25px;
@@ -550,14 +550,14 @@ onMounted(() => {
   
   .sidebar-header {
     margin-bottom: 15px;
-    border-bottom: 1px solid #f0f2f5;
+    border-bottom: 1px solid var(--app-border-light);
     padding-bottom: 10px;
   }
   
   .sidebar-title {
     font-size: 18px;
     font-weight: 600;
-    color: #303133;
+    color: var(--app-text-primary);
   }
   
   .chart-list {
@@ -574,7 +574,7 @@ onMounted(() => {
     padding: 0;
     margin-bottom: 0;
     transition: color 0.2s;
-    border-bottom: 1px solid #f9f9f9;
+    border-bottom: 1px solid var(--app-border-light);
   }
   
   .chart-item:last-child {
@@ -582,7 +582,7 @@ onMounted(() => {
   }
   
   .chart-item:hover {
-    color: #409eff;
+    color: var(--app-primary);
   }
   
   .chart-rank {
@@ -593,8 +593,8 @@ onMounted(() => {
     justify-content: center;
     font-size: 14px;
     font-weight: bold;
-    color: #909399;
-    background: #f5f7fa;
+    color: var(--app-text-muted);
+    background: var(--app-surface-muted);
     border-radius: 4px;
     flex-shrink: 0;
   }
@@ -622,7 +622,7 @@ onMounted(() => {
   
   .chart-item-subtitle {
     font-size: 12px;
-    color: #909399;
+    color: var(--app-text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -642,8 +642,8 @@ onMounted(() => {
     align-items: center;
     width: 100%;
     height: 100%;
-    background: #f5f7fa;
-    color: #909399;
+    background: var(--app-surface-muted);
+    color: var(--app-text-muted);
     font-size: 12px;
   }
   

@@ -160,7 +160,7 @@ const goToDetail = (item: DoubanMedia) => {
 
 .history-title {
   font-size: 13px;
-  color: #909399;
+  color: var(--app-text-muted);
   font-weight: 500;
 }
 
@@ -176,9 +176,9 @@ const goToDetail = (item: DoubanMedia) => {
 }
 
 .history-tag:hover {
-  background-color: #ecf5ff;
-  border-color: #409eff;
-  color: #409eff;
+  background-color: var(--app-primary-soft);
+  border-color: var(--app-primary);
+  color: var(--app-primary);
 }
 
 .media-grid {
@@ -224,7 +224,7 @@ const goToDetail = (item: DoubanMedia) => {
 }
 .subtitle {
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 .image-slot {
   display: flex;
@@ -232,7 +232,7 @@ const goToDetail = (item: DoubanMedia) => {
   align-items: center;
   width: 100%;
   height: 100%;
-  background: #f5f7fa;
-  color: #909399;
+  background: var(--app-surface-muted);
+  color: var(--app-text-muted);
 }
 </style>

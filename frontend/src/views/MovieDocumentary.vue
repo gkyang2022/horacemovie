@@ -292,7 +292,7 @@ onMounted(() => {
 }
 
 .filters-section {
-  background: #f8f9fb;
+  background: var(--app-surface-alt);
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -311,7 +311,7 @@ onMounted(() => {
 .filter-label {
   width: 60px;
   font-size: 14px;
-  color: #909399;
+  color: var(--app-text-muted);
   padding-top: 4px;
   flex-shrink: 0;
 }
@@ -324,7 +324,7 @@ onMounted(() => {
 
 .filter-item {
   font-size: 14px;
-  color: #606266;
+  color: var(--app-text-secondary);
   padding: 4px 12px;
   cursor: pointer;
   border-radius: 4px;
@@ -332,12 +332,12 @@ onMounted(() => {
 }
 
 .filter-item:hover {
-  color: #409eff;
+  color: var(--app-primary);
 }
 
 .filter-item.active {
-  background: #409eff;
-  color: #fff;
+  background: var(--app-primary);
+  color: var(--app-surface);
 }
 
 .documentary-content {
@@ -398,7 +398,7 @@ onMounted(() => {
 .title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -406,7 +406,7 @@ onMounted(() => {
 
 .subtitle {
   font-size: 13px;
-  color: #909399;
+  color: var(--app-text-muted);
   margin-top: 4px;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -427,8 +427,8 @@ onMounted(() => {
   align-items: center;
   width: 100%;
   height: 100%;
-  background: #f5f7fa;
-  color: #909399;
+  background: var(--app-surface-muted);
+  color: var(--app-text-muted);
   font-size: 14px;
 }
 

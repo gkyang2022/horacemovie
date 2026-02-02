@@ -12,7 +12,7 @@
   margin: 0;
   font-size: 28px;
   font-weight: 600;
-  color: #909399;
+  color: var(--app-text-muted);
   transition: all 0.3s;
   position: relative;
   padding-left: 0;
@@ -20,11 +20,11 @@
 }
 
 .tab-title:hover {
-  color: #409eff;
+  color: var(--app-primary);
 }
 
 .tab-title.active {
-  color: #303133;
+  color: var(--app-text-primary);
 }
 
 .tab-title.active::after {
@@ -34,12 +34,12 @@
   left: 0;
   width: 100%;
   height: 4px;
-  background: #409eff;
+  background: var(--app-primary);
   border-radius: 2px;
 }
 
 .tab-divider {
   font-size: 24px;
-  color: #dcdfe6;
+  color: var(--app-border);
   font-weight: 300;
 }

@@ -9,6 +9,9 @@
         <el-menu-item index="/tracker">资源追踪</el-menu-item>
         <el-menu-item index="/settings">设置</el-menu-item>
       </el-menu>
+      <div class="theme-toggle">
+        <el-button circle size="small" :icon="isDark ? Sunny : Moon" @click="toggleTheme" />
+      </div>
       <div class="user-info" v-if="user">
         <el-dropdown @command="handleCommand">
           <span class="el-dropdown-link">
@@ -31,16 +34,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ArrowDown } from '@element-plus/icons-vue';
+import { ArrowDown, Moon, Sunny } from '@element-plus/icons-vue';
 
 const router = useRouter();
 const user = ref<{ username: string; role: string } | null>(null);
+const isDark = ref(false);
 
 onMounted(() => {
   const userStr = localStorage.getItem('user');
   if (userStr) {
     user.value = JSON.parse(userStr);
   }
+  isDark.value = document.documentElement.classList.contains('dark');
 });
 
 const handleCommand = (command: string) => {
@@ -48,6 +53,14 @@ const handleCommand = (command: string) => {
     localStorage.removeItem('user');
     router.push('/login');
   }
+};
+
+const toggleTheme = () => {
+  isDark.value = !isDark.value;
+  const nextTheme = isDark.value ? 'dark' : 'light';
+  localStorage.setItem('theme', nextTheme);
+  document.documentElement.classList.toggle('dark', isDark.value);
+  document.documentElement.setAttribute('data-theme', nextTheme);
 };
 </script>
 
@@ -58,7 +71,8 @@ const handleCommand = (command: string) => {
 .header {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #dcdfe6;
+  border-bottom: 1px solid var(--app-border);
+  background-color: var(--app-surface);
   padding: 0 20px;
 }
 .logo {
@@ -66,11 +80,14 @@ const handleCommand = (command: string) => {
   font-weight: bold;
   margin-right: 40px;
   cursor: pointer;
-  color: #409eff;
+  color: var(--app-primary);
 }
 .menu {
   flex: 1;
   border-bottom: none;
+}
+.theme-toggle {
+  margin-right: 12px;
 }
 .user-info {
   margin-left: 20px;

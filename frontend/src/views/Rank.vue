@@ -200,7 +200,7 @@ onMounted(fetchData);
 }
 
 .filters-section {
-  background: #f8f9fb;
+  background: var(--app-surface-alt);
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -218,7 +218,7 @@ onMounted(fetchData);
 
 .filter-label {
   font-size: 14px;
-  color: #909399;
+  color: var(--app-text-muted);
   width: 60px;
   flex-shrink: 0;
   padding-top: 4px;
@@ -232,7 +232,7 @@ onMounted(fetchData);
 
 .filter-item {
   font-size: 14px;
-  color: #606266;
+  color: var(--app-text-secondary);
   cursor: pointer;
   padding: 4px 12px;
   border-radius: 4px;
@@ -240,12 +240,12 @@ onMounted(fetchData);
 }
 
 .filter-item:hover {
-  color: #409eff;
+  color: var(--app-primary);
 }
 
 .filter-item.active {
-  background-color: #409eff;
-  color: #fff;
+  background-color: var(--app-primary);
+  color: var(--app-surface);
   font-weight: 500;
 }
 
@@ -299,15 +299,14 @@ onMounted(fetchData);
 .title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .subtitle {
   font-size: 13px;
-  color: #909399;
-  margin-top: 4px;
+  color: var(--app-text-muted);
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;

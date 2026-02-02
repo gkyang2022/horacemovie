@@ -239,7 +239,7 @@ watch(() => route.query.type, () => {
 .title {
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -247,7 +247,7 @@ watch(() => route.query.type, () => {
 
 .subtitle {
   font-size: 13px;
-  color: #909399;
+  color: var(--app-text-muted);
   margin-top: 4px;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -268,8 +268,8 @@ watch(() => route.query.type, () => {
   align-items: center;
   width: 100%;
   height: 100%;
-  background: #f5f7fa;
-  color: #909399;
+  background: var(--app-surface-muted);
+  color: var(--app-text-muted);
   font-size: 14px;
 }
 

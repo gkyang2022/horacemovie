@@ -357,7 +357,7 @@ onMounted(() => {
 
 .sub-tab-item {
   font-size: 15px;
-  color: #606266;
+  color: var(--app-text-secondary);
   cursor: pointer;
   padding: 4px 0;
   position: relative;
@@ -365,11 +365,11 @@ onMounted(() => {
 }
 
 .sub-tab-item:hover {
-  color: #409eff;
+  color: var(--app-primary);
 }
 
 .sub-tab-item.active {
-  color: #409eff;
+  color: var(--app-primary);
   font-weight: 600;
 }
 
@@ -380,12 +380,12 @@ onMounted(() => {
   left: 0;
   width: 100%;
   height: 2px;
-  background-color: #409eff;
+  background-color: var(--app-primary);
   border-radius: 2px;
 }
 
 .filters-section {
-  background: #f8f9fb;
+  background: var(--app-surface-alt);
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -403,7 +403,7 @@ onMounted(() => {
 
 .filter-label {
   font-size: 14px;
-  color: #909399;
+  color: var(--app-text-muted);
   width: 60px;
   flex-shrink: 0;
   padding-top: 4px;
@@ -417,7 +417,7 @@ onMounted(() => {
 
 .filter-item {
   font-size: 14px;
-  color: #606266;
+  color: var(--app-text-secondary);
   cursor: pointer;
   padding: 4px 12px;
   border-radius: 4px;
@@ -425,12 +425,12 @@ onMounted(() => {
 }
 
 .filter-item:hover {
-  color: #409eff;
+  color: var(--app-primary);
 }
 
 .filter-item.active {
-  background-color: #409eff;
-  color: #fff;
+  background-color: var(--app-primary);
+  color: var(--app-surface);
   font-weight: 500;
 }
 
@@ -492,7 +492,7 @@ onMounted(() => {
 .title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -500,7 +500,7 @@ onMounted(() => {
 
 .subtitle {
   font-size: 13px;
-  color: #909399;
+  color: var(--app-text-muted);
   margin-top: 4px;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -521,8 +521,8 @@ onMounted(() => {
   align-items: center;
   width: 100%;
   height: 100%;
-  background: #f5f7fa;
-  color: #909399;
+  background: var(--app-surface-muted);
+  color: var(--app-text-muted);
   font-size: 14px;
 }
 

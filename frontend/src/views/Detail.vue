@@ -268,7 +268,7 @@ onMounted(() => {
 .detail-container {
   display: flex;
   gap: 40px;
-  background: #fff;
+  background: var(--app-surface);
   padding: 30px;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
@@ -295,11 +295,11 @@ onMounted(() => {
 .title {
   margin: 0 0 15px 0;
   font-size: 28px;
-  color: #303133;
+  color: var(--app-text-primary);
 }
 
 .year {
-  color: #909399;
+  color: var(--app-text-muted);
   font-weight: normal;
   font-size: 20px;
 }
@@ -323,7 +323,7 @@ onMounted(() => {
 
 .rating-count {
   font-size: 13px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 .info-list {
@@ -339,13 +339,13 @@ onMounted(() => {
 }
 
 .label {
-  color: #909399;
+  color: var(--app-text-muted);
   width: 50px;
   flex-shrink: 0;
 }
 
 .value {
-  color: #303133;
+  color: var(--app-text-primary);
   flex-grow: 1;
 }
 
@@ -361,19 +361,19 @@ onMounted(() => {
 
 .intro {
   margin: 20px 0 30px 0;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--app-border-light);
   padding-top: 20px;
 }
 
 .intro h3 {
   margin: 0 0 12px 0;
   font-size: 18px;
-  color: #303133;
+  color: var(--app-text-primary);
 }
 
 .intro p {
   line-height: 1.8;
-  color: #606266;
+  color: var(--app-text-secondary);
   font-size: 14px;
   margin: 0;
   white-space: pre-wrap;
@@ -400,7 +400,7 @@ onMounted(() => {
 .resource-dialog-title {
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text-primary);
 }
 
 .resource-refresh-button {
@@ -412,7 +412,7 @@ onMounted(() => {
 }
 
 .text-gray {
-  color: #909399;
+  color: var(--app-text-muted);
   font-size: 12px;
 }
 

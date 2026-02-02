@@ -1,79 +1,35 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
+  --app-bg: #f5f7fa;
+  --app-surface: #ffffff;
+  --app-surface-muted: #f5f7fa;
+  --app-surface-alt: #f8f9fb;
+  --app-border: #dcdfe6;
+  --app-border-light: #ebeef5;
+  --app-text-primary: #303133;
+  --app-text-secondary: #606266;
+  --app-text-muted: #909399;
+  --app-primary: #409eff;
+  --app-primary-soft: #ecf5ff;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --app-bg: #0f1115;
+  --app-surface: #1a1d23;
+  --app-surface-muted: #23272f;
+  --app-surface-alt: #1f242c;
+  --app-border: #2f3440;
+  --app-border-light: #2a2f39;
+  --app-text-primary: #e5eaf3;
+  --app-text-secondary: #c0c4cc;
+  --app-text-muted: #9aa0a6;
+  --app-primary: #5aa7ff;
+  --app-primary-soft: rgba(90, 167, 255, 0.2);
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-.card {
-  padding: 2em;
-}
-
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+  background-color: var(--app-bg);
+  color: var(--app-text-primary);
 }

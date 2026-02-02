@@ -36,13 +36,7 @@ export const transferAndSync = async (req: Request, res: Response) => {
         }
 
         if (result.success) {
-            // 2. 记录日志
-            await db.run(
-                'INSERT INTO sync_logs (media_name, source_url, status) VALUES (?, ?, ?)',
-                mediaName, shareUrl, 'transferred'
-            );
-
-            // 3. 自动触发 OpenList 同步
+            // 2. 自动触发 OpenList 同步
             const openlistPathKey = type === '115' ? 'openlist_path_115' : 'openlist_path_quark';
             const settingsRows2 = await db.all('SELECT key, value FROM settings WHERE key IN (?, ?)', [openlistPathKey, 'openlist_default_path']);
             const settings2: any = {};

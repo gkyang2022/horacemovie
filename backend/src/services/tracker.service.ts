@@ -147,12 +147,7 @@ export class TrackerService {
             // 1. 搜索资源
             const results = await pansouService.search(task.keyword);
             
-            // 2. 获取已转存历史 (简单对比文件名)
-            const history = await db.all('SELECT media_name FROM sync_logs WHERE media_name LIKE ?', `%${task.keyword}%`);
-            const historyNames = history.map(h => h.media_name);
-
-            // 3. 找出未转存的新资源
-            const newResources = results.filter(r => !historyNames.includes(r.name));
+            const newResources = results;
 
             if (newResources.length > 0) {
                 console.log(`[TrackerService] Found ${newResources.length} new resources for task: ${task.name}`);
@@ -188,10 +183,6 @@ export class TrackerService {
                             : await cloudService.saveToQuark(cookie, res.url, targetFolderId);
 
                         if (transferRes.success) {
-                            await db.run(
-                                'INSERT INTO sync_logs (media_name, source_url, status) VALUES (?, ?, ?)',
-                                res.name, res.url, 'auto_transferred'
-                            );
                             console.log(`[TrackerService] Successfully auto-transferred: ${res.name}`);
                             
                             // 自动触发 OpenList 同步

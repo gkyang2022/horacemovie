@@ -50,15 +50,6 @@ export async function initDb() {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
-        CREATE TABLE IF NOT EXISTS sync_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            media_name TEXT,
-            source_url TEXT,
-            target_path TEXT,
-            status TEXT, -- 'success', 'failed'
-            error_msg TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
     `);
 
     // Create default admin if not exists

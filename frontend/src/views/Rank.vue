@@ -73,8 +73,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue';
-import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { getTopList, type DoubanMedia } from '../api/douban';
 
 interface OptionItem {
@@ -127,40 +127,7 @@ const noMore = ref(false);
 const start = ref(0);
 const count = 20;
 const items = ref<DoubanMedia[]>([]);
-const route = useRoute();
 const router = useRouter();
-
-const getStateKey = () => `horace_movie_list_state_${route.fullPath}`;
-
-const restoreState = async () => {
-  const saved = localStorage.getItem(getStateKey());
-  if (!saved) return false;
-  try {
-    const state = JSON.parse(saved);
-    selectedType.value = state.selectedType ?? selectedType.value;
-    selectedScore.value = state.selectedScore ?? selectedScore.value;
-    items.value = Array.isArray(state.items) ? state.items : [];
-    start.value = Number.isFinite(state.start) ? state.start : items.value.length;
-    noMore.value = Boolean(state.noMore);
-    await nextTick();
-    window.scrollTo(0, Number(state.scrollY) || 0);
-    return items.value.length > 0;
-  } catch (e) {
-    return false;
-  }
-};
-
-const saveState = () => {
-  const payload = {
-    selectedType: selectedType.value,
-    selectedScore: selectedScore.value,
-    items: items.value,
-    start: start.value,
-    noMore: noMore.value,
-    scrollY: window.scrollY
-  };
-  localStorage.setItem(getStateKey(), JSON.stringify(payload));
-};
 
 const handleTypeChange = (value: string) => {
   if (selectedType.value === value) return;
@@ -215,19 +182,11 @@ const fetchData = async (isMore = false) => {
 };
 
 const goToDetail = (item: DoubanMedia) => {
-  router.push(`/detail/${item.type || 'movie'}/${item.id}`);
+  const detailUrl = router.resolve(`/detail/${item.type || 'movie'}/${item.id}`);
+  window.open(detailUrl.href, '_blank');
 };
 
-onBeforeRouteLeave(() => {
-  saveState();
-});
-
-onMounted(async () => {
-  const restored = await restoreState();
-  if (!restored) {
-    fetchData();
-  }
-});
+onMounted(fetchData);
 </script>
 
 <style scoped>

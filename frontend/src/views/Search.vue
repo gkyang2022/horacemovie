@@ -135,7 +135,8 @@ const clearHistory = () => {
 
 const goToDetail = (item: DoubanMedia) => {
   const mediaType = item.type || 'movie';
-  router.push(`/detail/${mediaType}/${item.id}`);
+  const detailUrl = router.resolve(`/detail/${mediaType}/${item.id}`);
+  window.open(detailUrl.href, '_blank');
 };
 </script>
 

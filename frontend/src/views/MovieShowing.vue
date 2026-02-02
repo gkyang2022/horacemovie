@@ -64,8 +64,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue';
-import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
+import { ref, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { getPopular, type DoubanMedia } from '../api/douban';
 
 const route = useRoute();
@@ -78,36 +78,6 @@ const items = ref<DoubanMedia[]>([]);
 const start = ref(0);
 const count = 20;
 const noMore = ref(false);
-
-const getStateKey = () => `horace_movie_list_state_${route.fullPath}`;
-
-const restoreState = async () => {
-  const saved = localStorage.getItem(getStateKey());
-  if (!saved) return false;
-  try {
-    const state = JSON.parse(saved);
-    activeTab.value = state.activeTab ?? activeTab.value;
-    items.value = Array.isArray(state.items) ? state.items : [];
-    start.value = Number.isFinite(state.start) ? state.start : items.value.length;
-    noMore.value = Boolean(state.noMore);
-    await nextTick();
-    window.scrollTo(0, Number(state.scrollY) || 0);
-    return items.value.length > 0;
-  } catch (e) {
-    return false;
-  }
-};
-
-const saveState = () => {
-  const payload = {
-    activeTab: activeTab.value,
-    items: items.value,
-    start: start.value,
-    noMore: noMore.value,
-    scrollY: window.scrollY
-  };
-  localStorage.setItem(getStateKey(), JSON.stringify(payload));
-};
 
 const initFromQuery = () => {
   const type = route.query.type as string;
@@ -172,19 +142,13 @@ const formatPubdate = (pubdate: string) => {
 };
 
 const goToDetail = (item: DoubanMedia) => {
-  router.push(`/detail/movie/${item.id}`);
+  const detailUrl = router.resolve(`/detail/movie/${item.id}`);
+  window.open(detailUrl.href, '_blank');
 };
 
-onBeforeRouteLeave(() => {
-  saveState();
-});
-
-onMounted(async () => {
+onMounted(() => {
   initFromQuery();
-  const restored = await restoreState();
-  if (!restored) {
-    fetchData();
-  }
+  fetchData();
 });
 
 watch(() => route.query.type, () => {

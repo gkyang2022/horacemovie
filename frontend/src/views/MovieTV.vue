@@ -144,8 +144,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive, nextTick } from 'vue';
-import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
+import { ref, onMounted, reactive } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { getPopular, getRecommendations, type DoubanMedia } from '../api/douban';
 
 const router = useRouter();
@@ -271,47 +271,6 @@ const currentFilters = reactive({
 });
 const currentSort = ref('T');
 
-const getStateKey = () => `horace_movie_list_state_${route.fullPath}`;
-
-const restoreState = async () => {
-  const saved = localStorage.getItem(getStateKey());
-  if (!saved) return false;
-  try {
-    const state = JSON.parse(saved);
-    activeTab.value = state.activeTab ?? activeTab.value;
-    activeHotSubTab.value = state.activeHotSubTab ?? activeHotSubTab.value;
-    currentSort.value = state.currentSort ?? currentSort.value;
-    if (state.currentFilters && typeof state.currentFilters === 'object') {
-      currentFilters.category = state.currentFilters.category ?? currentFilters.category;
-      currentFilters.region = state.currentFilters.region ?? currentFilters.region;
-      currentFilters.year = state.currentFilters.year ?? currentFilters.year;
-      currentFilters.platform = state.currentFilters.platform ?? currentFilters.platform;
-    }
-    items.value = Array.isArray(state.items) ? state.items : [];
-    start.value = Number.isFinite(state.start) ? state.start : items.value.length;
-    noMore.value = Boolean(state.noMore);
-    await nextTick();
-    window.scrollTo(0, Number(state.scrollY) || 0);
-    return items.value.length > 0;
-  } catch (e) {
-    return false;
-  }
-};
-
-const saveState = () => {
-  const payload = {
-    activeTab: activeTab.value,
-    activeHotSubTab: activeHotSubTab.value,
-    currentSort: currentSort.value,
-    currentFilters: { ...currentFilters },
-    items: items.value,
-    start: start.value,
-    noMore: noMore.value,
-    scrollY: window.scrollY
-  };
-  localStorage.setItem(getStateKey(), JSON.stringify(payload));
-};
-
 const handleTabChange = (tab: 'popular' | 'all') => {
   if (activeTab.value === tab) return;
   activeTab.value = tab;
@@ -389,18 +348,12 @@ const fetchData = async (isMore = false) => {
 };
 
 const goToDetail = (item: DoubanMedia) => {
-  router.push(`/detail/${item.type || 'tv'}/${item.id}`);
+  const detailUrl = router.resolve(`/detail/${item.type || 'tv'}/${item.id}`);
+  window.open(detailUrl.href, '_blank');
 };
 
-onBeforeRouteLeave(() => {
-  saveState();
-});
-
-onMounted(async () => {
-  const restored = await restoreState();
-  if (!restored) {
-    fetchData();
-  }
+onMounted(() => {
+  fetchData();
 });
 </script>
 

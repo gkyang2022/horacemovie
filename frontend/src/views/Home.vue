@@ -285,7 +285,8 @@ const fetchChartsData = async () => {
 };
 
 const goToDetail = (item: DoubanMedia, defaultType: string) => {
-  router.push(`/detail/${item.type || defaultType}/${item.id}`);
+  const detailUrl = router.resolve(`/detail/${item.type || defaultType}/${item.id}`);
+  window.open(detailUrl.href, '_blank');
 };
 
 const goToExplore = (type: string) => {

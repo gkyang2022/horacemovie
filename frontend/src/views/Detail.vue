@@ -1,6 +1,5 @@
 <template>
   <div v-loading="loading" class="detail-page">
-    <el-button class="detail-back-logo" :icon="ArrowLeft" circle @click="handleBack" />
     <div v-if="detail" class="detail-container">
       <div class="left">
         <el-image :src="detail.poster" fit="cover" class="main-poster" />
@@ -119,14 +118,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { getDetail, type DoubanMedia } from '../api/douban';
 import { searchPansou, saveToCloud } from '../api/system';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { ArrowLeft, Refresh } from '@element-plus/icons-vue';
+import { Refresh } from '@element-plus/icons-vue';
 
 const route = useRoute();
-const router = useRouter();
 const detail = ref<DoubanMedia | null>(null);
 const loading = ref(false);
 
@@ -239,14 +237,6 @@ const handleTrack = () => {
   });
 };
 
-const handleBack = () => {
-  if (window.history.length > 1) {
-    router.back();
-  } else {
-    router.push('/');
-  }
-};
-
 const handleSave = async (row: any) => {
   const type = getCloudTypeFromResource(row);
   if (!type) return;
@@ -273,17 +263,6 @@ onMounted(() => {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
-  position: relative;
-}
-
-.detail-back-logo {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 1;
-  border-color: var(--app-border);
-  background-color: var(--app-surface);
-  color: var(--app-primary);
 }
 
 .detail-container {

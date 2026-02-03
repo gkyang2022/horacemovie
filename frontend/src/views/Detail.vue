@@ -66,7 +66,6 @@
         </div>
         <div class="actions">
           <el-button type="primary" @click="handleSearchResource">搜索网盘资源</el-button>
-          <el-button type="success" plain @click="handleTrack">一键追踪</el-button>
         </div>
       </div>
     </div>
@@ -96,17 +95,26 @@
               </template>
             </el-table-column>
             <el-table-column property="source" label="来源" width="120" />
-            <el-table-column label="操作" width="120" fixed="right">
+            <el-table-column label="操作" width="200" fixed="right">
               <template #default="scope">
-                <el-button 
-                  v-if="canSave(scope.row)"
-                  type="primary" 
-                  size="small" 
-                  @click="handleSave(scope.row)"
-                >
-                  转存到{{ getSaveTargetName(scope.row) }}
-                </el-button>
-                <span v-else class="text-gray">不支持转存</span>
+                <div class="op-buttons">
+                  <el-button 
+                    v-if="canSave(scope.row)"
+                    type="primary" 
+                    size="small" 
+                    @click="handleSave(scope.row)"
+                  >
+                    转存
+                  </el-button>
+                  <el-button 
+                    type="success" 
+                    size="small" 
+                    plain
+                    @click="handleTrackResource(scope.row)"
+                  >
+                    追剧
+                  </el-button>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -121,6 +129,7 @@ import { ref, onMounted, computed, h } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getDetail, type DoubanMedia } from '../api/douban';
 import { searchPansou, saveToCloud } from '../api/system';
+import request from '../api/request';
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
 import { Refresh } from '@element-plus/icons-vue';
 
@@ -228,14 +237,45 @@ const handleRefreshResource = async () => {
   await executeResourceSearch(true);
 };
 
-const handleTrack = () => {
-  ElMessageBox.prompt('请输入追踪关键词（默认影视名）', '一键追踪', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    inputValue: detail.value?.title
-  }).then(({ value }) => {
-    ElMessage.success(`已开始追踪关键词: ${value}`);
-  });
+const handleTrackResource = async (row: any) => {
+  const panType = row.url.includes('115.com') ? '115' : (row.url.includes('quark.cn') ? 'quark' : '');
+  
+  // 解析 sharecode 和 receivecode
+  let shareCode = '';
+  let receiveCode = '';
+  
+  try {
+    const url = new URL(row.url);
+    if (panType === '115') {
+      // 115: https://115.com/s/sharecode?password=receivecode
+      shareCode = url.pathname.split('/').pop() || '';
+      receiveCode = url.searchParams.get('password') || '';
+    } else if (panType === 'quark') {
+      // Quark: https://pan.quark.cn/s/sharecode#/pwd=receivecode
+      shareCode = url.pathname.split('/').pop() || '';
+      // 夸克的提取码通常在 hash 后面
+      const hash = url.hash;
+      if (hash && hash.includes('pwd=')) {
+        receiveCode = hash.split('pwd=').pop() || '';
+      }
+    }
+  } catch (e) {
+    console.error('Failed to parse share URL:', e);
+  }
+
+  const taskName = `${row.name}-${panType}-${shareCode}-${receiveCode}`;
+  
+  try {
+    await request.post('/tracker/tasks', {
+      name: taskName,
+      share_url: row.url,
+      pan_type: panType,
+      interval_hours: 6
+    });
+    ElMessage.success(`已开始追剧: ${taskName}`);
+  } catch (error) {
+    // Error handled by interceptor
+  }
 };
 
 const handleSave = async (row: any) => {
@@ -250,9 +290,9 @@ const handleSave = async (row: any) => {
     });
     
     ElNotification({
-      title: '转存任务已提交',
+      title: '转存成功',
       message: h('div', null, [
-        h('span', null, res.message || '转存任务已提交'),
+        h('span', null, res.message || '同步任务已提交'),
         h('br'),
         h('span', { 
           style: 'color: #409eff; cursor: pointer; text-decoration: underline; margin-top: 8px; display: inline-block;',
@@ -425,6 +465,12 @@ onMounted(() => {
 
 .resource-tabs {
   margin-top: -10px;
+}
+
+.op-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .text-gray {

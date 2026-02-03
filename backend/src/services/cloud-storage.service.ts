@@ -22,6 +22,81 @@ export class CloudStorageService {
     }
 
     /**
+     * 获取分享链接的文件列表快照
+     */
+    async getShareSnap(type: '115' | 'quark', cookie: string, shareUrl: string): Promise<{ id: string, name: string }[]> {
+        if (type === '115') {
+            const shareCodeMatch = shareUrl.match(/\/s\/([a-zA-Z0-9]+)/);
+            if (!shareCodeMatch) return [];
+            const shareCode = shareCodeMatch[1];
+            const passwordMatch = shareUrl.match(/password=([^&]+)/);
+            const receiveCode = passwordMatch ? passwordMatch[1] : '';
+
+            try {
+                const snapRes = await axios.get(`https://webapi.115.com/share/snap?share_code=${shareCode}&receive_code=${receiveCode}`, {
+                    headers: {
+                        'Cookie': cookie,
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
+                    },
+                    timeout: 30000
+                });
+                if (snapRes.data && snapRes.data.state && snapRes.data.data) {
+                    const list = snapRes.data.data.list || [];
+                    return list.map((item: any) => ({
+                        id: item.file_id || item.pc || item.fid, // 115 的 ID 字段比较杂，pc 通常是文件夹/文件的唯一标识
+                        name: item.file_name || item.n
+                    }));
+                }
+            } catch (e) {
+                console.error(`[CloudStorageService] Failed to get 115 snap:`, e);
+            }
+        } else if (type === 'quark') {
+            const cleanUrl = shareUrl.trim().replace(/:+$/, '');
+            const shareIdMatch = cleanUrl.match(/\/s\/([a-zA-Z0-9]+)/);
+            const shareId = shareIdMatch ? shareIdMatch[1] : '';
+            const passCodeMatch = cleanUrl.match(/[?&](pwd|code)=([a-zA-Z0-9]+)/);
+            const passCode = passCodeMatch ? passCodeMatch[2] : '';
+
+            if (!shareId) return [];
+
+            try {
+                const commonParams = `pr=ucpro&fr=pc&uc_param_str=&__t=${Date.now()}`;
+                const getHeaders = () => ({
+                    'Cookie': cookie,
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
+                    'Referer': `https://pan.quark.cn/s/${shareId}`,
+                });
+
+                // 1. stoken
+                const tokenRes = await axios.post(`https://drive-h.quark.cn/1/clouddrive/share/sharepage/token?${commonParams}&__dt=994`, {
+                    pwd_id: shareId,
+                    passcode: passCode
+                }, { headers: getHeaders(), timeout: 30000 });
+
+                if (tokenRes.data?.status === 200 && tokenRes.data.data?.stoken) {
+                    const stoken = tokenRes.data.data.stoken;
+                    // 2. detail
+                    const detailRes = await axios.get(`https://drive-h.quark.cn/1/clouddrive/share/sharepage/detail?${commonParams}&stoken=${stoken}&pwd_id=${shareId}&_pdir_fid=0`, {
+                        headers: getHeaders(),
+                        timeout: 30000
+                    });
+
+                    if (detailRes.data?.status === 200 && detailRes.data.data?.list) {
+                        return detailRes.data.data.list.map((item: any) => ({
+                            id: item.fid,
+                            name: item.file_name,
+                            share_fid_token: item.share_fid_token // 夸克转存需要这个 token
+                        }));
+                    }
+                }
+            } catch (e) {
+                console.error(`[CloudStorageService] Failed to get Quark snap:`, e);
+            }
+        }
+        return [];
+    }
+
+    /**
      * 115网盘转存逻辑 (分享转存)
      * 115 分享链接转存通常需要从 URL 中提取 share_code，然后调用 share/receive 接口
      */

@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { OpenListService } from '../services/openlist.service.js';
-import { getDb } from '../db/index.js';
 
 const openlistService = OpenListService.getInstance();
 

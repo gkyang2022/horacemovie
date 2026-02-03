@@ -69,27 +69,8 @@ export class TrackerService {
                     }
                 });
 
-                // 追踪命令: /track keyword
-                this.bot.command('track', async (ctx) => {
-                    const keyword = ctx.message.text.split(' ').slice(1).join(' ');
-                    if (!keyword) return ctx.reply('请输入追踪关键词, 例如: /track 凡人修仙传');
-                    
-                    console.log(`[TrackerService] Bot received /track command for: "${keyword}"`);
-                    try {
-                        await db.run(
-                            'INSERT INTO tracker_tasks (name, keyword) VALUES (?, ?)',
-                            keyword, keyword
-                        );
-                        console.log(`[TrackerService] Successfully added tracking task for: "${keyword}"`);
-                        ctx.reply(`已开启追踪: ${keyword}`);
-                    } catch (e: any) {
-                        console.error(`[TrackerService] Bot track error for "${keyword}":`, e.message);
-                        ctx.reply(`开启追踪失败: ${e.message}`);
-                    }
-                });
-
                 // 帮助命令
-                this.bot.help((ctx) => ctx.reply('HoraceMovie Bot 命令:\n/search <关键词> - 搜索网盘资源\n/track <关键词> - 开启资源追踪\n/help - 显示此帮助'));
+                this.bot.help((ctx) => ctx.reply('HoraceMovie Bot 命令:\n/search <关键词> - 搜索网盘资源\n/help - 显示此帮助'));
 
                 // Disable telegraf signal handling to avoid conflict with tsx/manual handlers
                 (this.bot.launch as any)({
@@ -127,10 +108,21 @@ export class TrackerService {
 
             for (const task of tasks) {
                 const lastRun = task.last_run_at ? new Date(task.last_run_at) : new Date(0);
-                const intervalMs = (task.interval_hours || 6) * 60 * 60 * 1000;
+                
+                // 计算间隔时间（毫秒）
+                let intervalMs = (task.interval_hours || 6) * 60 * 60 * 1000;
+                const unit = task.interval_unit || 'hour';
+                
+                if (unit === 'minute') {
+                    intervalMs = (task.interval_hours || 30) * 60 * 1000;
+                } else if (unit === 'day') {
+                    intervalMs = (task.interval_hours || 1) * 24 * 60 * 60 * 1000;
+                } else if (unit === 'month') {
+                    intervalMs = (task.interval_hours || 1) * 30 * 24 * 60 * 60 * 1000;
+                }
 
                 if (now.getTime() - lastRun.getTime() >= intervalMs) {
-                    console.log(`[TrackerService] Executing task: "${task.keyword}"`);
+                    console.log(`[TrackerService] Executing task: "${task.name}"`);
                     await this.executeTask(task);
                 }
             }
@@ -140,88 +132,86 @@ export class TrackerService {
     }
 
     async executeTask(task: any) {
-        console.log(`[TrackerService] Executing task logic for: ${task.name} (${task.keyword})`);
+        console.log(`[TrackerService] Executing task logic for: ${task.name} (link-tracking)`);
         const db = getDb();
 
+        if (!task.share_url) {
+            console.warn(`[TrackerService] Task ${task.name} skipped: No share_url found`);
+            return;
+        }
+
         try {
-            // 1. 搜索资源
-            const results = await pansouService.search(task.keyword);
+            // 获取默认网盘配置
+            const settingsRows = await db.all('SELECT key, value FROM settings WHERE key IN ("cookie_quark", "folder_id_quark", "cookie_115", "folder_id_115", "openlist_path_115", "openlist_path_quark", "openlist_default_path")');
+            const settings: any = {};
+            settingsRows.forEach(row => {
+                settings[row.key] = row.value;
+            });
+
+            // --- 链接追踪模式 ---
+            // 确定网盘类型、Cookie 和目标文件夹
+            let type = task.pan_type;
+            if (!type) {
+                if (task.share_url.includes('115.com')) type = '115';
+                else if (task.share_url.includes('quark.cn')) type = 'quark';
+            }
             
-            const newResources = results;
+            const cookie = type === '115' ? settings.cookie_115 : settings.cookie_quark;
+            const targetFolderId = task.target_folder_id || (type === '115' ? settings.folder_id_115 : settings.folder_id_quark) || '0';
 
-            if (newResources.length > 0) {
-                console.log(`[TrackerService] Found ${newResources.length} new resources for task: ${task.name}`);
-                
-                // 获取默认网盘配置
-                const settingsRows = await db.all('SELECT key, value FROM settings WHERE key IN ("cookie_quark", "folder_id_quark", "cookie_115", "folder_id_115")');
-                const settings: any = {};
-                settingsRows.forEach(row => {
-                    settings[row.key] = row.value;
-                });
-                
-                // 优先使用夸克，其次 115
-                let type = '';
-                let cookie = '';
-                let targetFolderId = '0';
+            if (!type || !cookie) {
+                console.warn(`[TrackerService] Task ${task.name} skipped: No cloud account or type configured for ${type}`);
+                return;
+            }
 
-                if (settings.cookie_quark) {
-                    type = 'quark';
-                    cookie = settings.cookie_quark;
-                    targetFolderId = settings.folder_id_quark || '0';
-                } else if (settings.cookie_115) {
-                    type = '115';
-                    cookie = settings.cookie_115;
-                    targetFolderId = settings.folder_id_115 || '0';
+            // 获取当前分享内容的快照
+            const currentFiles = await cloudService.getShareSnap(type as '115' | 'quark', cookie, task.share_url);
+            if (currentFiles.length === 0) {
+                console.log(`[TrackerService] No files found in share link for task: ${task.name}`);
+            } else {
+                let lastFileIds: string[] = [];
+                try {
+                    lastFileIds = JSON.parse(task.last_file_ids || '[]');
+                } catch (e) {
+                    lastFileIds = [];
                 }
-                
-                if (type && cookie) {
-                    for (const res of newResources) {
-                        console.log(`[TrackerService] Auto-transferring: ${res.name} to ${type}`);
+
+                const newFiles = currentFiles.filter(f => !lastFileIds.includes(f.id));
+
+                if (newFiles.length > 0) {
+                    console.log(`[TrackerService] Found ${newFiles.length} new items for task: ${task.name}`);
+                    
+                    // 执行转存
+                    const transferRes = type === '115' 
+                        ? await cloudService.saveTo115(cookie, task.share_url, targetFolderId)
+                        : await cloudService.saveToQuark(cookie, task.share_url, targetFolderId);
+
+                    if (transferRes.success) {
+                        console.log(`[TrackerService] Successfully transferred new items for: ${task.name}`);
                         
-                        const transferRes = type === '115' 
-                            ? await cloudService.saveTo115(cookie, res.url, targetFolderId)
-                            : await cloudService.saveToQuark(cookie, res.url, targetFolderId);
+                        // 更新已转存文件 ID 列表
+                        const updatedIds = [...new Set([...lastFileIds, ...currentFiles.map(f => f.id)])];
+                        await db.run('UPDATE tracker_tasks SET last_file_ids = ? WHERE id = ?', JSON.stringify(updatedIds), task.id);
+                        
+                        // 自动同步 OpenList (如果配置了)
+                        const openlistPathKey = type === '115' ? 'openlist_path_115' : 'openlist_path_quark';
+                        const openlistSourcePath = settings[openlistPathKey];
+                        const openlistDefaultPath = settings['openlist_default_path'];
 
-                        if (transferRes.success) {
-                            console.log(`[TrackerService] Successfully auto-transferred: ${res.name}`);
-                            
-                            // 自动触发 OpenList 同步
-                            const openlistPathKey = type === '115' ? 'openlist_path_115' : 'openlist_path_quark';
-                            const settingsRows2 = await db.all('SELECT key, value FROM settings WHERE key IN (?, ?)', [openlistPathKey, 'openlist_default_path']);
-                            const settings2: any = {};
-                            settingsRows2.forEach(row => {
-                                settings2[row.key] = row.value;
-                            });
-                            
-                            const openlistSourcePath = settings2[openlistPathKey];
-                            const openlistDefaultPath = settings2['openlist_default_path'];
-
-                            if (openlistSourcePath) {
-                                console.log(`[TrackerService] Triggering auto-sync for ${res.name} from ${openlistSourcePath} to ${openlistDefaultPath || 'default'}, names: ${transferRes.names?.join(', ') || 'all'}`);
-                                const openlistService = (await import('./openlist.service.js')).OpenListService.getInstance();
-                                void openlistService.copyFile(openlistSourcePath, transferRes.names || [], openlistDefaultPath)
-                                    .then(({ taskId, error }) => {
-                                        if (taskId) {
-                                            console.log(`[TrackerService] Auto-sync task submitted: ${taskId} for ${res.name}`);
-                                        } else {
-                                            console.warn(`[TrackerService] Auto-sync task submission failed for ${res.name}: ${error || '未知错误'}`);
-                                        }
-                                    })
-                                    .catch(err => {
-                                        console.error(`[TrackerService] Auto-sync error for ${res.name}:`, err.message);
-                                    });
-                            }
-
-                            this.notify(`[HoraceMovie] 追剧成功: ${res.name} 已自动转存到 ${type}`);
-                        } else {
-                            console.warn(`[TrackerService] Auto-transfer failed for ${res.name}: ${transferRes.message}`);
+                        if (openlistSourcePath) {
+                            console.log(`[TrackerService] Triggering auto-sync for ${task.name}`);
+                            const openlistService = (await import('./openlist.service.js')).OpenListService.getInstance();
+                            void openlistService.copyFile(openlistSourcePath, transferRes.names || [], openlistDefaultPath)
+                                .catch(err => console.error(`[TrackerService] Auto-sync error:`, err.message));
                         }
+
+                        this.notify(`[HoraceMovie] 追剧成功: ${task.name} 发现 ${newFiles.length} 个新内容，已转存到 ${type}`);
+                    } else {
+                        console.warn(`[TrackerService] Transfer failed for ${task.name}: ${transferRes.message}`);
                     }
                 } else {
-                    console.warn('[TrackerService] No cloud account configured for auto-transfer');
+                    console.log(`[TrackerService] No new items for task: ${task.name}`);
                 }
-            } else {
-                console.log(`[TrackerService] No new resources found for task: ${task.name}`);
             }
 
             // 更新最后运行时间

@@ -42,22 +42,43 @@ export async function initDb() {
         CREATE TABLE IF NOT EXISTS tracker_tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            keyword TEXT NOT NULL,
+            keyword TEXT,
+            share_url TEXT,
+            target_folder_id TEXT,
+            target_folder_name TEXT,
+            pan_type TEXT, -- '115' or 'quark'
+            last_file_ids TEXT, -- JSON array of file/folder IDs
             interval_hours INTEGER DEFAULT 6,
+            interval_unit TEXT DEFAULT 'hour',
             last_run_at DATETIME,
             status TEXT DEFAULT 'active', -- 'active', 'paused'
             config TEXT, -- JSON config for filters
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
-
-        CREATE TABLE IF NOT EXISTS user_tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            task_id TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
     `);
+
+    // Add missing columns if they don't exist (for existing databases)
+    const columns = await db.all('PRAGMA table_info(tracker_tasks)');
+    const columnNames = columns.map(c => c.name);
+    
+    if (!columnNames.includes('share_url')) {
+        await db.exec('ALTER TABLE tracker_tasks ADD COLUMN share_url TEXT');
+    }
+    if (!columnNames.includes('target_folder_id')) {
+        await db.exec('ALTER TABLE tracker_tasks ADD COLUMN target_folder_id TEXT');
+    }
+    if (!columnNames.includes('target_folder_name')) {
+        await db.exec('ALTER TABLE tracker_tasks ADD COLUMN target_folder_name TEXT');
+    }
+    if (!columnNames.includes('pan_type')) {
+        await db.exec('ALTER TABLE tracker_tasks ADD COLUMN pan_type TEXT');
+    }
+    if (!columnNames.includes('last_file_ids')) {
+            await db.exec('ALTER TABLE tracker_tasks ADD COLUMN last_file_ids TEXT');
+        }
+        if (!columnNames.includes('interval_unit')) {
+            await db.exec('ALTER TABLE tracker_tasks ADD COLUMN interval_unit TEXT DEFAULT "hour"');
+        }
 
     // Create default admin if not exists
     const adminExists = await db.get('SELECT id FROM users WHERE username = ?', 'admin');

@@ -62,11 +62,6 @@ const routes = [
         component: () => import('../views/Settings.vue')
       },
       {
-        path: 'tracker',
-        name: 'Tracker',
-        component: () => import('../views/Tracker.vue')
-      },
-      {
         path: 'tasks',
         name: 'Tasks',
         component: () => import('../views/Tasks.vue')

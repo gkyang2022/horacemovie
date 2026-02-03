@@ -26,7 +26,7 @@
           </el-table-column>
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
-              <el-tag :type="getStateTagType(row.state)" size="small">
+              <el-tag :type="getStateTagType(row.state)" size="small" class="status-tag">
                 {{ getStateText(row.state) }}
               </el-tag>
             </template>
@@ -83,7 +83,7 @@
           </el-table-column>
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
-              <el-tag :type="getStateTagType(row.state)" size="small">
+              <el-tag :type="getStateTagType(row.state)" size="small" class="status-tag">
                 {{ getStateText(row.state) }}
               </el-tag>
             </template>
@@ -364,6 +364,10 @@ const formatDuration = (start: string, end: string) => {
   display: flex;
   justify-content: flex-start;
   gap: 12px;
+}
+
+.status-tag {
+  font-weight: bold;
 }
 
 .error-text {

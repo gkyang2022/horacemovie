@@ -6,6 +6,7 @@ export interface TransferResult {
     message: string;
     data?: any;
     names?: string[];
+    errorType?: 'user' | 'system';
 }
 
 export class CloudStorageService {
@@ -33,7 +34,7 @@ export class CloudStorageService {
             const shareCodeMatch = shareUrl.match(/\/s\/([a-zA-Z0-9]+)/);
             if (!shareCodeMatch) {
                 console.warn(`[CloudStorageService] Could not extract share_code from 115 URL: ${shareUrl}`);
-                return { success: false, message: '无法从链接中提取分享码' };
+                return { success: false, message: '无法从链接中提取分享码', errorType: 'user' };
             }
             const shareCode = shareCodeMatch[1];
 
@@ -87,18 +88,20 @@ export class CloudStorageService {
                 return { success: true, message: '115 分享转存成功', data: response.data, names };
             }
 
-            const errorMsg = response.data?.error_msg || response.data?.msg || (response.data?.state === false ? '操作失败' : 'Unknown error');
+            const rawError = response.data?.error_msg || response.data?.msg || response.data?.error || response.data?.message || (response.data?.state === false ? '操作失败' : 'Unknown error');
+            const errorText = String(rawError || '');
+            const isUserError = /(分享已取消|分享不存在|链接不存在|访问码|提取码|密码|口令|无效)/.test(errorText) || [4100010, 4100011, 4100012, 4100013].includes(Number(response.data?.errno));
             console.warn(`[CloudStorageService] 115 share receive failed for ${shareCode}. Response:`, JSON.stringify(response.data));
             
             // 特殊处理：如果已经转存过，115 会返回特定错误，我们视其为某种程度的“成功”或友好提示
-            if (errorMsg.includes('已接收') || errorMsg.includes('已经接收')) {
+            if (errorText.includes('已接收') || errorText.includes('已经接收')) {
                 return { success: true, message: '资源已在网盘中，无需重复转存', data: response.data, names };
             }
 
-            return { success: false, message: `115 转存失败: ${errorMsg}` };
+            return { success: false, message: `115 转存失败: ${errorText || '操作失败'}`, errorType: isUserError ? 'user' : 'system' };
         } catch (error: any) {
             console.error(`[CloudStorageService] 115 share receive exception for ${shareUrl}:`, error.message);
-            return { success: false, message: `115 转存异常: ${error.message}` };
+            return { success: false, message: `115 转存异常: ${error.message}`, errorType: 'system' };
         }
     }
 

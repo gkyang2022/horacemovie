@@ -63,7 +63,8 @@ export const transferAndSync = async (req: Request, res: Response) => {
 
             res.json({ message: '转存任务已提交', detail: result.message });
         } else {
-            res.status(500).json({ error: result.message });
+            const status = result.errorType === 'user' ? 400 : 500;
+            res.status(status).json({ error: result.message });
         }
     } catch (error: any) {
         res.status(500).json({ error: error.message });

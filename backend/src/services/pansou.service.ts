@@ -67,13 +67,22 @@ export class PansouService {
 
             if (respBody && respBody.data) {
                 const data = respBody.data;
+                const buildUrlWithPassword = (url: string, password: string, type: string) => {
+                    if (!url || !password) return url;
+                    const normalizedType = (type || '').toLowerCase();
+                    const key = normalizedType === '115' ? 'password' : normalizedType === 'quark' ? 'pwd' : '';
+                    if (!key) return url;
+                    if (new RegExp(`[?&]${key}=`, 'i').test(url)) return url;
+                    const separator = url.includes('?') ? '&' : '?';
+                    return `${url}${separator}${key}=${encodeURIComponent(password)}`;
+                };
                 if (data.merged_by_type && typeof data.merged_by_type === 'object') {
                     // Flatten the object: { "115": [], "quark": [] } -> [] with type preserved
                     Object.entries(data.merged_by_type).forEach(([type, val]: [string, any]) => {
                         if (Array.isArray(val)) {
                             const mapped = val.map((item: any) => ({
                                 name: item.title || item.name || item.note || '未知文件名',
-                                url: item.link || item.url || '',
+                                url: buildUrlWithPassword(item.link || item.url || '', item.password || '', type),
                                 size: item.size || '未知',
                                 source: item.sitename || item.source || item.from || '未知',
                                 time: item.time || item.date || item.datetime || '',
@@ -85,7 +94,7 @@ export class PansouService {
                 } else if (Array.isArray(data.results)) {
                     items = data.results.map((item: any) => ({
                         name: item.title || item.name || item.note || '未知文件名',
-                        url: item.link || item.url || '',
+                        url: buildUrlWithPassword(item.link || item.url || '', item.password || '', item.cloud_type || item.type || item.cloudType || ''),
                         size: item.size || '未知',
                         source: item.sitename || item.source || item.from || '未知',
                         time: item.time || item.date || item.datetime || '',

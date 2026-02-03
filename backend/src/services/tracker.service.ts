@@ -200,8 +200,12 @@ export class TrackerService {
                                 console.log(`[TrackerService] Triggering auto-sync for ${res.name} from ${openlistSourcePath} to ${openlistDefaultPath || 'default'}, names: ${transferRes.names?.join(', ') || 'all'}`);
                                 const openlistService = (await import('./openlist.service.js')).OpenListService.getInstance();
                                 void openlistService.copyFile(openlistSourcePath, transferRes.names || [], openlistDefaultPath)
-                                    .then(syncSuccess => {
-                                        console.log(`[TrackerService] Auto-sync ${syncSuccess ? 'task submitted' : 'failed'} for ${res.name}`);
+                                    .then(({ taskId, error }) => {
+                                        if (taskId) {
+                                            console.log(`[TrackerService] Auto-sync task submitted: ${taskId} for ${res.name}`);
+                                        } else {
+                                            console.warn(`[TrackerService] Auto-sync task submission failed for ${res.name}: ${error || '未知错误'}`);
+                                        }
                                     })
                                     .catch(err => {
                                         console.error(`[TrackerService] Auto-sync error for ${res.name}:`, err.message);

@@ -50,12 +50,18 @@ export const transferAndSync = async (req: Request, res: Response) => {
             if (openlistSourcePath) {
                 console.log(`[TransferController] Triggering auto-sync for ${mediaName} from ${openlistSourcePath} to ${openlistDefaultPath || 'default'}, names: ${result.names?.join(', ') || 'all'}`);
                 // 注意：转存成功到 OpenList 能够看到文件可能有延迟，这里异步执行同步
+                const userId = req.headers['x-user-id'];
                 void openlistService.copyFile(openlistSourcePath, result.names || [], openlistDefaultPath)
-                    .then(syncSuccess => {
-                        console.log(`[TransferController] Auto-sync ${syncSuccess ? 'task submitted' : 'failed'} for ${mediaName}`);
+                    .then(async ({ taskId, error }) => {
+                        if (taskId && userId) {
+                            console.log(`[TransferController] Auto-sync task submitted: ${taskId} for user ${userId}`);
+                            await db.run('INSERT INTO user_tasks (user_id, task_id) VALUES (?, ?)', userId, taskId);
+                        } else {
+                            console.warn(`[TransferController] Auto-sync task submission failed for user ${userId || 'unknown'}: ${error || '未知错误'}`);
+                        }
                     })
                     .catch(err => {
-                        console.error(`[TransferController] Auto-sync error for ${mediaName}:`, err.message);
+                        console.error(`[TransferController] Auto-sync unexpected error for ${mediaName}:`, err.message);
                     });
             } else {
                 console.log(`[TransferController] No OpenList source path configured for ${type}, skipping auto-sync`);
@@ -73,13 +79,18 @@ export const transferAndSync = async (req: Request, res: Response) => {
 
 export const syncToNas = async (req: Request, res: Response) => {
     const { srcDir, names, dstDir } = req.body;
+    const db = getDb();
+    const userId = req.headers['x-user-id'];
     
     try {
-        const success = await openlistService.copyFile(srcDir, names, dstDir);
-        if (success) {
-            res.json({ message: '同步任务已发送至 OpenList' });
+        const { taskId, error } = await openlistService.copyFile(srcDir, names, dstDir);
+        if (taskId) {
+            if (userId) {
+                await db.run('INSERT INTO user_tasks (user_id, task_id) VALUES (?, ?)', userId, taskId);
+            }
+            res.json({ message: '同步任务已发送至 OpenList', taskId });
         } else {
-            res.status(500).json({ error: 'OpenList 同步失败，请检查配置或 Token' });
+            res.status(500).json({ error: error || 'OpenList 同步失败，请检查配置或 Token' });
         }
     } catch (error: any) {
         res.status(500).json({ error: error.message });

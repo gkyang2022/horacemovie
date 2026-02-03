@@ -8,6 +8,13 @@ const service = axios.create({
 
 service.interceptors.request.use(
   (config) => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user.id) {
+        config.headers['X-User-Id'] = user.id;
+      }
+    }
     if (import.meta.env.DEV) {
       console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.params || config.data || '');
     }

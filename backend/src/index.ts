@@ -11,6 +11,7 @@ import searchRoutes from './routes/search.routes.js';
 import transferRoutes from './routes/transfer.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import trackerRoutes from './routes/tracker.routes.js';
+import taskRoutes from './routes/task.routes.js';
 import { TrackerService } from './services/tracker.service.js';
 import type { Server } from 'node:http';
 import type { Socket } from 'node:net';
@@ -35,6 +36,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/transfer', transferRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/tracker', trackerRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

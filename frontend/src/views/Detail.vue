@@ -117,14 +117,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, onMounted, computed, h } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { getDetail, type DoubanMedia } from '../api/douban';
 import { searchPansou, saveToCloud } from '../api/system';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
 import { Refresh } from '@element-plus/icons-vue';
 
 const route = useRoute();
+const router = useRouter();
 const detail = ref<DoubanMedia | null>(null);
 const loading = ref(false);
 
@@ -247,7 +248,22 @@ const handleSave = async (row: any) => {
       type,
       mediaName: detail.value?.title || '未知'
     });
-    ElMessage.success(res.message || '已提交转存任务');
+    
+    ElNotification({
+      title: '转存任务已提交',
+      message: h('div', null, [
+        h('span', null, res.message || '转存任务已提交'),
+        h('br'),
+        h('span', { 
+          style: 'color: #409eff; cursor: pointer; text-decoration: underline; margin-top: 8px; display: inline-block;',
+          onClick: () => {
+            router.push('/tasks');
+          }
+        }, '点击前往“任务”页查看进度')
+      ]),
+      type: 'success',
+      duration: 5000
+    });
   } catch (e) {
     // Error handled by interceptor
   }

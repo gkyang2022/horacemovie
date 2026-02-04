@@ -95,7 +95,7 @@
               </template>
             </el-table-column>
             <el-table-column property="source" label="来源" width="120" />
-            <el-table-column label="操作" width="200" fixed="right">
+            <el-table-column label="操作" width="120" fixed="right">
               <template #default="scope">
                 <div class="op-buttons">
                   <el-button 
@@ -104,15 +104,7 @@
                     size="small" 
                     @click="handleSave(scope.row)"
                   >
-                    转存
-                  </el-button>
-                  <el-button 
-                    type="success" 
-                    size="small" 
-                    plain
-                    @click="handleTrackResource(scope.row)"
-                  >
-                    追剧
+                    一键转存
                   </el-button>
                 </div>
               </template>
@@ -120,6 +112,29 @@
           </el-table>
         </el-tab-pane>
       </el-tabs>
+    </el-dialog>
+
+    <!-- 追剧设置对话框 -->
+    <el-dialog v-model="trackerConfigDialog" title="是否开启追剧（资源追踪）？" width="400px">
+      <div style="margin-bottom: 20px; color: var(--app-text-muted); font-size: 14px;">
+        开启后，系统将定期检查该分享链接是否有新内容并自动转存。
+      </div>
+      <el-form :model="trackerConfigForm" label-width="80px">
+        <el-form-item label="检查频率">
+          <div style="display: flex; gap: 10px; align-items: center">
+            <el-input-number v-model="trackerConfigForm.interval_hours" :min="1" style="width: 120px" />
+            <el-select v-model="trackerConfigForm.interval_unit" style="width: 90px">
+              <el-option label="分钟" value="minute" />
+              <el-option label="小时" value="hour" />
+              <el-option label="天" value="day" />
+            </el-select>
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="trackerConfigDialog = false">暂不需要</el-button>
+        <el-button type="primary" @click="confirmCreateTracker" :loading="trackerSubmitting">开启追剧</el-button>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -142,6 +157,15 @@ const resourceDialog = ref(false);
 const searchLoading = ref(false);
 const resources = ref<any[]>([]);
 const activeTab = ref('115');
+
+// 追剧相关状态
+const trackerConfigDialog = ref(false);
+const trackerSubmitting = ref(false);
+const currentResourceForTracker = ref<any>(null);
+const trackerConfigForm = ref({
+  interval_hours: 6,
+  interval_unit: 'hour'
+});
 
 const resourceTabs = [
   { label: '115网盘', key: '115' },
@@ -237,44 +261,26 @@ const handleRefreshResource = async () => {
   await executeResourceSearch(true);
 };
 
-const handleTrackResource = async (row: any) => {
-  const panType = row.url.includes('115.com') ? '115' : (row.url.includes('quark.cn') ? 'quark' : '');
+const confirmCreateTracker = async () => {
+  if (!currentResourceForTracker.value) return;
+  const row = currentResourceForTracker.value;
+  const panType = getCloudTypeFromResource(row);
   
-  // 解析 sharecode 和 receivecode
-  let shareCode = '';
-  let receiveCode = '';
-  
-  try {
-    const url = new URL(row.url);
-    if (panType === '115') {
-      // 115: https://115.com/s/sharecode?password=receivecode
-      shareCode = url.pathname.split('/').pop() || '';
-      receiveCode = url.searchParams.get('password') || '';
-    } else if (panType === 'quark') {
-      // Quark: https://pan.quark.cn/s/sharecode#/pwd=receivecode
-      shareCode = url.pathname.split('/').pop() || '';
-      // 夸克的提取码通常在 hash 后面
-      const hash = url.hash;
-      if (hash && hash.includes('pwd=')) {
-        receiveCode = hash.split('pwd=').pop() || '';
-      }
-    }
-  } catch (e) {
-    console.error('Failed to parse share URL:', e);
-  }
-
-  const taskName = `${row.name}-${panType}-${shareCode}-${receiveCode}`;
-  
+  trackerSubmitting.value = true;
   try {
     await request.post('/tracker/tasks', {
-      name: taskName,
+      name: row.name,
       share_url: row.url,
       pan_type: panType,
-      interval_hours: 6
+      interval_hours: trackerConfigForm.value.interval_hours,
+      interval_unit: trackerConfigForm.value.interval_unit
     });
-    ElMessage.success(`已开始追剧: ${taskName}`);
+    ElMessage.success(`追剧任务创建成功`);
+    trackerConfigDialog.value = false;
   } catch (error) {
     // Error handled by interceptor
+  } finally {
+    trackerSubmitting.value = false;
   }
 };
 
@@ -304,6 +310,26 @@ const handleSave = async (row: any) => {
       type: 'success',
       duration: 5000
     });
+
+    // 转存成功后，如果是夸克网盘，询问是否开启追剧
+    if (type === 'quark') {
+      setTimeout(() => {
+        ElMessageBox.confirm(
+          '转存成功！该资源是夸克链接，是否需要开启追剧（资源追踪）功能？',
+          '追剧提醒',
+          {
+            confirmButtonText: '开启追剧',
+            cancelButtonText: '暂不需要',
+            type: 'info',
+          }
+        ).then(() => {
+          currentResourceForTracker.value = row;
+          trackerConfigDialog.value = true;
+        }).catch(() => {
+          // 用户选择不追剧
+        });
+      }, 500);
+    }
   } catch (e) {
     // Error handled by interceptor
   }

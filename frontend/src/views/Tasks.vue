@@ -169,7 +169,7 @@
           <el-input v-model="trackerForm.name" placeholder="例如: 凡人修仙传" />
         </el-form-item>
         <el-form-item label="分享链接">
-          <el-input v-model="trackerForm.share_url" placeholder="网盘分享链接 (115或夸克)" />
+          <el-input v-model="trackerForm.share_url" placeholder="仅支持夸克网盘分享链接" />
         </el-form-item>
         <el-form-item label="检查间隔">
           <div style="display: flex; gap: 10px; align-items: center">
@@ -273,13 +273,14 @@ const fetchSyncTasks = async () => {
     const undone = processTasks(data.undone, true).sort((a, b) => {
       const timeA = a.start_time ? new Date(a.start_time).getTime() : 0;
       const timeB = b.start_time ? new Date(b.start_time).getTime() : 0;
-      return timeB - timeA;
+      if (timeA !== timeB) {
+        return timeB - timeA; // start_time 倒序
+      }
+      return (a.name || '').localeCompare(b.name || ''); // name 正序
     });
 
     const done = processTasks(data.done, false).sort((a, b) => {
-      const timeA = a.end_time ? new Date(a.end_time).getTime() : 0;
-      const timeB = b.end_time ? new Date(b.end_time).getTime() : 0;
-      return timeB - timeA;
+      return (a.name || '').localeCompare(b.name || ''); // name 正序
     });
 
     syncTasks.value = { undone, done };
@@ -435,6 +436,12 @@ const handleTrackerEdit = (row: any) => {
 const submitTrackerEdit = async () => {
   if (!trackerForm.value.name || !trackerForm.value.share_url) {
     return ElMessage.warning('请填写完整信息');
+  }
+  if (trackerForm.value.share_url.includes('115.com')) {
+    return ElMessage.warning('115网盘不支持追剧功能（链接为快照形式，无法检测更新）');
+  }
+  if (!trackerForm.value.share_url.includes('quark.cn')) {
+    return ElMessage.warning('目前追剧功能仅支持夸克网盘');
   }
   trackerSubmitting.value = true;
   try {

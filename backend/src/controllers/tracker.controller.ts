@@ -35,6 +35,15 @@ export const runTask = async (req: Request, res: Response) => {
 
 export const createTask = async (req: Request, res: Response) => {
     const { name, share_url, target_folder_id, target_folder_name, pan_type, interval_hours, interval_unit } = req.body;
+    
+    // 验证网盘类型
+    if (share_url.includes('115.com')) {
+        return res.status(400).json({ error: '115网盘不支持追剧功能（链接为快照形式，无法检测更新）' });
+    }
+    if (!share_url.includes('quark.cn')) {
+        return res.status(400).json({ error: '目前追剧功能仅支持夸克网盘' });
+    }
+
     const db = getDb();
     try {
         await db.run(
@@ -49,12 +58,23 @@ export const createTask = async (req: Request, res: Response) => {
 
 export const updateTask = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { status, interval_hours, interval_unit } = req.body;
+    const { name, share_url, status, interval_hours, interval_unit } = req.body;
+
+    // 验证网盘类型 (如果提供了新 URL)
+    if (share_url) {
+        if (share_url.includes('115.com')) {
+            return res.status(400).json({ error: '115网盘不支持追剧功能（链接为快照形式，无法检测更新）' });
+        }
+        if (!share_url.includes('quark.cn')) {
+            return res.status(400).json({ error: '目前追剧功能仅支持夸克网盘' });
+        }
+    }
+
     const db = getDb();
     try {
         await db.run(
-            'UPDATE tracker_tasks SET status = ?, interval_hours = ?, interval_unit = ? WHERE id = ?',
-            status, interval_hours, interval_unit, id
+            'UPDATE tracker_tasks SET name = COALESCE(?, name), share_url = COALESCE(?, share_url), status = COALESCE(?, status), interval_hours = COALESCE(?, interval_hours), interval_unit = COALESCE(?, interval_unit) WHERE id = ?',
+            name, share_url, status, interval_hours, interval_unit, id
         );
         res.json({ message: '任务更新成功' });
     } catch (error: any) {

@@ -152,20 +152,25 @@ export class TrackerService {
             // 确定网盘类型、Cookie 和目标文件夹
             let type = task.pan_type;
             if (!type) {
-                if (task.share_url.includes('115.com')) type = '115';
-                else if (task.share_url.includes('quark.cn')) type = 'quark';
+                if (task.share_url.includes('quark.cn')) type = 'quark';
+                // 115 不支持追剧（快照模式），此处不再自动识别 115
             }
             
-            const cookie = type === '115' ? settings.cookie_115 : settings.cookie_quark;
-            const targetFolderId = task.target_folder_id || (type === '115' ? settings.folder_id_115 : settings.folder_id_quark) || '0';
+            if (type === '115') {
+                console.warn(`[TrackerService] Task ${task.name} skipped: 115 cloud does not support dynamic tracking (snapshot only)`);
+                return;
+            }
+
+            const cookie = type === 'quark' ? settings.cookie_quark : null;
+            const targetFolderId = task.target_folder_id || (type === 'quark' ? settings.folder_id_quark : '0');
 
             if (!type || !cookie) {
-                console.warn(`[TrackerService] Task ${task.name} skipped: No cloud account or type configured for ${type}`);
+                console.warn(`[TrackerService] Task ${task.name} skipped: No cloud account or type configured for ${type || 'unknown'}`);
                 return;
             }
 
             // 获取当前分享内容的快照
-            const currentFiles = await cloudService.getShareSnap(type as '115' | 'quark', cookie, task.share_url);
+            const currentFiles = await cloudService.getShareSnap(type as 'quark', cookie, task.share_url);
             if (currentFiles.length === 0) {
                 console.log(`[TrackerService] No files found in share link for task: ${task.name}`);
             } else {
@@ -182,9 +187,7 @@ export class TrackerService {
                     console.log(`[TrackerService] Found ${newFiles.length} new items for task: ${task.name}`);
                     
                     // 执行转存
-                    const transferRes = type === '115' 
-                        ? await cloudService.saveTo115(cookie, task.share_url, targetFolderId)
-                        : await cloudService.saveToQuark(cookie, task.share_url, targetFolderId);
+                    const transferRes = await cloudService.saveToQuark(cookie, task.share_url, targetFolderId);
 
                     if (transferRes.success) {
                         console.log(`[TrackerService] Successfully transferred new items for: ${task.name}`);
@@ -194,7 +197,7 @@ export class TrackerService {
                         await db.run('UPDATE tracker_tasks SET last_file_ids = ? WHERE id = ?', JSON.stringify(updatedIds), task.id);
                         
                         // 自动同步 OpenList (如果配置了)
-                        const openlistPathKey = type === '115' ? 'openlist_path_115' : 'openlist_path_quark';
+                        const openlistPathKey = 'openlist_path_quark';
                         const openlistSourcePath = settings[openlistPathKey];
                         const openlistDefaultPath = settings['openlist_default_path'];
 

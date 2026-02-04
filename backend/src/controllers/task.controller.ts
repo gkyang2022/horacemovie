@@ -38,3 +38,38 @@ export const handleTaskOp = async (req: Request, res: Response) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+export const handleBatchTaskOp = async (req: Request, res: Response) => {
+    const { op } = req.params;
+    const tids = req.body;
+
+    if (!Array.isArray(tids)) {
+        return res.status(400).json({ error: '请求体必须是 ID 数组' });
+    }
+
+    try {
+        const result = await openlistService.batchTaskOperation(op as any, tids);
+        if (result) {
+            res.json(result);
+        } else {
+            res.status(500).json({ error: '批量操作失败' });
+        }
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const handleFullTaskOp = async (req: Request, res: Response) => {
+    const { type } = req.params;
+
+    try {
+        const result = await openlistService.fullTaskOperation(type as any);
+        if (result) {
+            res.json(result);
+        } else {
+            res.status(500).json({ error: '全量操作失败' });
+        }
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};

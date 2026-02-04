@@ -19,7 +19,29 @@
     <div v-if="activeMainTab === 'sync'" class="tab-content">
       <el-tabs v-model="activeSyncTab" class="task-tabs">
         <el-tab-pane label="进行中" name="undone">
-          <el-table :data="syncTasks.undone" v-loading="syncLoading" style="width: 100%" row-key="id">
+          <div class="batch-ops">
+            <el-button 
+              size="small" 
+              type="primary" 
+              :disabled="selectedUndone.length === 0"
+              @click="handleBatchOp('retry', 'undone')"
+            >重试已选</el-button>
+            <el-button 
+              size="small" 
+              type="danger" 
+              :disabled="selectedUndone.length === 0"
+              @click="handleBatchOp('cancel', 'undone')"
+            >取消已选</el-button>
+          </div>
+          <el-table 
+            ref="undoneTableRef"
+            :data="syncTasks.undone" 
+            v-loading="syncLoading" 
+            style="width: 100%" 
+            row-key="id"
+            @selection-change="(val: any[]) => selectedUndone = val"
+          >
+            <el-table-column type="selection" width="55" />
             <el-table-column type="expand">
               <template #default="{ row }">
                 <div class="task-detail">
@@ -76,7 +98,32 @@
         </el-tab-pane>
 
         <el-tab-pane label="已完成" name="done">
-          <el-table :data="syncTasks.done" v-loading="syncLoading" style="width: 100%" row-key="id">
+          <div class="batch-ops">
+            <el-button size="small" type="warning" @click="handleFullClear('retry_failed')">重试失败项</el-button>
+            <el-button size="small" type="danger" @click="handleFullClear('clear_done')">删除所有</el-button>
+            <el-button size="small" type="danger" plain @click="handleFullClear('clear_succeeded')">删除已成功</el-button>
+            <el-button 
+              size="small" 
+              type="primary" 
+              :disabled="selectedDone.length === 0"
+              @click="handleBatchOp('retry', 'done')"
+            >重试已选</el-button>
+            <el-button 
+              size="small" 
+              type="danger" 
+              :disabled="selectedDone.length === 0"
+              @click="handleBatchOp('delete', 'done')"
+            >删除已选</el-button>
+          </div>
+          <el-table 
+            ref="doneTableRef"
+            :data="syncTasks.done" 
+            v-loading="syncLoading" 
+            style="width: 100%" 
+            row-key="id"
+            @selection-change="(val: any[]) => selectedDone = val"
+          >
+            <el-table-column type="selection" width="55" />
             <el-table-column type="expand">
               <template #default="{ row }">
                 <div class="task-detail">
@@ -194,7 +241,17 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getUserTasks, taskOp, type UserTasks } from '../api/tasks';
+import { 
+  getUserTasks, 
+  taskOp, 
+  batchCancelTasks, 
+  batchDeleteTasks, 
+  batchRetryTasks, 
+  clearDoneTasks, 
+  clearSucceededTasks, 
+  retryFailedTasks,
+  type UserTasks 
+} from '../api/tasks';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import axios from 'axios';
 
@@ -223,6 +280,10 @@ const handleTabChange = (tab: string) => {
 const activeSyncTab = ref('undone');
 const syncLoading = ref(false);
 const syncTasks = ref<UserTasks>({ undone: [], done: [] });
+const undoneTableRef = ref();
+const doneTableRef = ref();
+const selectedUndone = ref<any[]>([]);
+const selectedDone = ref<any[]>([]);
 const lastUndoneData = ref<Record<string, { bytes: number, time: number }>>({});
 let syncTimer: any = null;
 
@@ -283,7 +344,28 @@ const fetchSyncTasks = async () => {
       return (a.name || '').localeCompare(b.name || ''); // name 正序
     });
 
+    const undoneIds = new Set(selectedUndone.value.map(t => t.id));
+    const doneIds = new Set(selectedDone.value.map(t => t.id));
+
     syncTasks.value = { undone, done };
+
+    // 恢复勾选状态
+    setTimeout(() => {
+      if (undoneTableRef.value) {
+        undone.forEach(row => {
+          if (undoneIds.has(row.id)) {
+            undoneTableRef.value.toggleRowSelection(row, true);
+          }
+        });
+      }
+      if (doneTableRef.value) {
+        done.forEach(row => {
+          if (doneIds.has(row.id)) {
+            doneTableRef.value.toggleRowSelection(row, true);
+          }
+        });
+      }
+    }, 0);
   } catch (error) {
     console.error('Fetch sync tasks failed:', error);
   }
@@ -296,6 +378,42 @@ const handleSyncOp = async (op: 'cancel' | 'delete' | 'retry', tid: string) => {
     fetchSyncTasks();
   } catch (error: any) {
     ElMessage.error(error.response?.data?.error || '操作失败');
+  }
+};
+
+const handleBatchOp = async (op: 'cancel' | 'delete' | 'retry', tab: 'undone' | 'done') => {
+  const selected = tab === 'undone' ? selectedUndone.value : selectedDone.value;
+  if (selected.length === 0) return;
+  
+  const tids = selected.map(t => t.id);
+  try {
+    let res;
+    if (op === 'cancel') res = await batchCancelTasks(tids);
+    else if (op === 'delete') res = await batchDeleteTasks(tids);
+    else if (op === 'retry') res = await batchRetryTasks(tids);
+    
+    if (res && res.code === 200) {
+      ElMessage.success('批量操作成功');
+      fetchSyncTasks();
+    }
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.error || '批量操作失败');
+  }
+};
+
+const handleFullClear = async (type: 'clear_done' | 'clear_succeeded' | 'retry_failed') => {
+  try {
+    let res;
+    if (type === 'clear_done') res = await clearDoneTasks();
+    else if (type === 'clear_succeeded') res = await clearSucceededTasks();
+    else if (type === 'retry_failed') res = await retryFailedTasks();
+    
+    if (res && res.code === 200) {
+      ElMessage.success('全量操作成功');
+      fetchSyncTasks();
+    }
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.error || '全量操作失败');
   }
 };
 
@@ -560,6 +678,13 @@ onUnmounted(() => {
 
 .status-tag {
   font-weight: bold;
+}
+
+.batch-ops {
+  margin-bottom: 15px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .error-text {

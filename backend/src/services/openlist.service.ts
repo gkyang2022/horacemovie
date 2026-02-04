@@ -184,4 +184,48 @@ export class OpenListService {
             return false;
         }
     }
+
+    async batchTaskOperation(op: string, tids: string[]): Promise<any> {
+        const config = await this.getConfig();
+        const baseUrl = config['openlist_url'];
+        const token = await this.getToken();
+
+        if (!baseUrl || !token) return null;
+
+        try {
+            const response = await axios.post(`${baseUrl}/api/task/copy/${op}`, tids, {
+                headers: {
+                    'Authorization': token
+                },
+                timeout: 30000
+            });
+
+            return response.data;
+        } catch (error: any) {
+            console.error(`OpenList batch task ${op} error:`, error.message);
+            return null;
+        }
+    }
+
+    async fullTaskOperation(type: 'clear_done' | 'clear_succeeded' | 'retry_failed'): Promise<any> {
+        const config = await this.getConfig();
+        const baseUrl = config['openlist_url'];
+        const token = await this.getToken();
+
+        if (!baseUrl || !token) return null;
+
+        try {
+            const response = await axios.post(`${baseUrl}/api/task/copy/${type}`, {}, {
+                headers: {
+                    'Authorization': token
+                },
+                timeout: 30000
+            });
+
+            return response.data;
+        } catch (error: any) {
+            console.error(`OpenList full task ${type} error:`, error.message);
+            return null;
+        }
+    }
 }

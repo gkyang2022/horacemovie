@@ -122,7 +122,7 @@
       <el-form :model="trackerConfigForm" label-width="80px">
         <el-form-item label="检查频率">
           <div style="display: flex; gap: 10px; align-items: center">
-            <el-input-number v-model="trackerConfigForm.interval_hours" :min="1" style="width: 120px" />
+            <el-input-number v-model="trackerConfigForm.interval_value" :min="1" style="width: 120px" />
             <el-select v-model="trackerConfigForm.interval_unit" style="width: 90px">
               <el-option label="分钟" value="minute" />
               <el-option label="小时" value="hour" />
@@ -163,7 +163,7 @@ const trackerConfigDialog = ref(false);
 const trackerSubmitting = ref(false);
 const currentResourceForTracker = ref<any>(null);
 const trackerConfigForm = ref({
-  interval_hours: 6,
+  interval_value: 6,
   interval_unit: 'hour'
 });
 
@@ -292,7 +292,7 @@ const confirmCreateTracker = async () => {
       name: taskName,
       share_url: row.url,
       pan_type: panType,
-      interval_hours: trackerConfigForm.value.interval_hours,
+      interval_value: trackerConfigForm.value.interval_value,
       interval_unit: trackerConfigForm.value.interval_unit
     });
     ElMessage.success(`追剧任务创建成功`);

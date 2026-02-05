@@ -177,7 +177,7 @@
         </el-table-column>
         <el-table-column label="检查间隔" width="150">
           <template #default="{ row }">
-            {{ row.interval_hours }} {{ getUnitLabel(row.interval_unit) }}
+            {{ row.interval_value }} {{ getUnitLabel(row.interval_unit) }}
           </template>
         </el-table-column>
         <el-table-column label="最后运行时间" width="200">
@@ -220,7 +220,7 @@
         </el-form-item>
         <el-form-item label="检查间隔">
           <div style="display: flex; gap: 10px; align-items: center">
-            <el-input-number v-model="trackerForm.interval_hours" :min="1" />
+            <el-input-number v-model="trackerForm.interval_value" :min="1" />
             <el-select v-model="trackerForm.interval_unit" style="width: 100px">
               <el-option label="分钟" value="minute" />
               <el-option label="小时" value="hour" />
@@ -507,7 +507,7 @@ const currentTrackerId = ref<number | null>(null);
 const trackerForm = ref({
   name: '',
   share_url: '',
-  interval_hours: 6,
+  interval_value: 6,
   interval_unit: 'hour'
 });
 
@@ -545,7 +545,7 @@ const handleTrackerEdit = (row: any) => {
   trackerForm.value = {
     name: row.name,
     share_url: row.share_url,
-    interval_hours: row.interval_hours,
+    interval_value: row.interval_value,
     interval_unit: row.interval_unit || 'hour'
   };
   showTrackerEditDialog.value = true;
@@ -582,7 +582,7 @@ const toggleTrackerStatus = async (row: any) => {
   try {
     await axios.put(`/api/tracker/tasks/${row.id}`, {
       status: newStatus,
-      interval_hours: row.interval_hours,
+      interval_value: row.interval_value,
       interval_unit: row.interval_unit || 'hour'
     });
     ElMessage.success('状态已更新');

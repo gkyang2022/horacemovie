@@ -37,7 +37,8 @@ export const createUser = async (req: Request, res: Response) => {
     const db = getDb();
 
     try {
-        await db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', username, password, role || 'guest');
+        const now = new Date().toLocaleString('sv-SE');
+        await db.run('INSERT INTO users (username, password, role, created_at) VALUES (?, ?, ?, ?)', username, password, role || 'guest', now);
         res.json({ message: '用户创建成功' });
     } catch (error: any) {
         res.status(500).json({ error: error.message });

@@ -90,13 +90,13 @@ export class TrackerService {
         if (this.scheduleTask) {
             this.scheduleTask.stop();
         }
-        this.scheduleTask = cron.schedule('0 * * * *', () => {
-            console.log('[TrackerService] Running scheduled task check...');
+        // 每分钟检查一次任务，而不是每小时
+        this.scheduleTask = cron.schedule('* * * * *', () => {
             void this.checkAllTasks().catch((err: any) => {
                 console.error('[TrackerService] Tracker scheduler tick failed:', err?.message || err);
             });
         });
-        console.log('[TrackerService] Tracker scheduler started (running every hour)');
+        console.log('[TrackerService] Tracker scheduler started (running every minute)');
     }
 
     async checkAllTasks() {
@@ -110,15 +110,15 @@ export class TrackerService {
                 const lastRun = task.last_run_at ? new Date(task.last_run_at) : new Date(0);
                 
                 // 计算间隔时间（毫秒）
-                let intervalMs = (task.interval_hours || 6) * 60 * 60 * 1000;
+                let intervalMs = (task.interval_value || 6) * 60 * 60 * 1000;
                 const unit = task.interval_unit || 'hour';
                 
                 if (unit === 'minute') {
-                    intervalMs = (task.interval_hours || 30) * 60 * 1000;
+                    intervalMs = (task.interval_value || 30) * 60 * 1000;
                 } else if (unit === 'day') {
-                    intervalMs = (task.interval_hours || 1) * 24 * 60 * 60 * 1000;
+                    intervalMs = (task.interval_value || 1) * 24 * 60 * 60 * 1000;
                 } else if (unit === 'month') {
-                    intervalMs = (task.interval_hours || 1) * 30 * 24 * 60 * 60 * 1000;
+                    intervalMs = (task.interval_value || 1) * 30 * 24 * 60 * 60 * 1000;
                 }
 
                 if (now.getTime() - lastRun.getTime() >= intervalMs) {
@@ -141,8 +141,8 @@ export class TrackerService {
         }
 
         try {
-            // 获取默认网盘配置
-            const settingsRows = await db.all('SELECT key, value FROM settings WHERE key IN ("cookie_quark", "folder_id_quark", "cookie_115", "folder_id_115", "openlist_path_115", "openlist_path_quark", "openlist_default_path")');
+            // 获取网盘配置和同步设置
+            const settingsRows = await db.all('SELECT key, value FROM settings WHERE key IN ("cookie_quark", "openlist_path_quark", "openlist_default_path")');
             const settings: any = {};
             settingsRows.forEach(row => {
                 settings[row.key] = row.value;
@@ -150,26 +150,22 @@ export class TrackerService {
 
             // --- 链接追踪模式 ---
             // 确定网盘类型、Cookie 和目标文件夹
-            let type = task.pan_type;
-            if (!type) {
-                if (task.share_url.includes('quark.cn')) type = 'quark';
-                // 115 不支持追剧（快照模式），此处不再自动识别 115
-            }
-            
-            if (type === '115') {
-                console.warn(`[TrackerService] Task ${task.name} skipped: 115 cloud does not support dynamic tracking (snapshot only)`);
+            let type = task.pan_type || 'quark';
+            const cookie = type === 'quark' ? settings.cookie_quark : null;
+            const targetFolderId = task.target_folder_id;
+
+            if (!cookie) {
+                console.warn(`[TrackerService] Task ${task.name} skipped: No cookie found for ${type}`);
                 return;
             }
 
-            const cookie = type === 'quark' ? settings.cookie_quark : null;
-            const targetFolderId = task.target_folder_id || (type === 'quark' ? settings.folder_id_quark : '0');
-
-            if (!type || !cookie) {
-                console.warn(`[TrackerService] Task ${task.name} skipped: No cloud account or type configured for ${type || 'unknown'}`);
+            if (!targetFolderId) {
+                console.warn(`[TrackerService] Task ${task.name} skipped: No target_folder_id found in task record`);
                 return;
             }
 
             // 获取当前分享内容的快照
+            console.log(`[TrackerService] Checking share snapshot for task: ${task.name}`);
             const currentFiles = await cloudService.getShareSnap(type as 'quark', cookie, task.share_url);
             if (currentFiles.length === 0) {
                 console.log(`[TrackerService] No files found in share link for task: ${task.name}`);
@@ -186,8 +182,16 @@ export class TrackerService {
                 if (newFiles.length > 0) {
                     console.log(`[TrackerService] Found ${newFiles.length} new items for task: ${task.name}`);
                     
-                    // 执行转存
-                    const transferRes = await cloudService.saveToQuark(cookie, task.share_url, targetFolderId);
+                    // 过滤掉那些父目录也是新文件的项，避免重复转存（转存父目录会自动包含子项）
+                    const topLevelNewFiles = newFiles.filter(file => {
+                        // 如果父目录 ID 就在新文件列表中，说明当前文件会被其父目录的转存动作带走
+                        return !newFiles.some(potentialParent => potentialParent.id === file.pid);
+                    });
+
+                    console.log(`[TrackerService] Top-level new items to transfer: ${topLevelNewFiles.length}`);
+                    
+                    // 执行转存 - 仅转存顶级新发现的项目
+                    const transferRes = await cloudService.saveToQuark(cookie, task.share_url, targetFolderId, topLevelNewFiles);
 
                     if (transferRes.success) {
                         console.log(`[TrackerService] Successfully transferred new items for: ${task.name}`);
@@ -218,7 +222,8 @@ export class TrackerService {
             }
 
             // 更新最后运行时间
-            await db.run('UPDATE tracker_tasks SET last_run_at = ? WHERE id = ?', new Date().toISOString(), task.id);
+            const now = new Date().toLocaleString('sv-SE');
+            await db.run('UPDATE tracker_tasks SET last_run_at = ? WHERE id = ?', now, task.id);
         } catch (error: any) {
             console.error(`[TrackerService] Task ${task.name} failed:`, error.message);
         }

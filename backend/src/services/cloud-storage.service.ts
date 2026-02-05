@@ -159,6 +159,70 @@ export class CloudStorageService {
         return allFiles;
     }
 
+    private async listQuarkDriveFiles(cookie: string, shareId: string, pdirFid: string): Promise<QuarkFile[]> {
+        const url = 'https://drive.quark.cn/1/clouddrive/file/sort';
+        const params = {
+            pr: 'ucpro',
+            fr: 'pc',
+            pdir_fid: pdirFid,
+            _page: 1,
+            _size: 200,
+            _sort: 'file_name:asc',
+            __dt: 994,
+            __t: Date.now()
+        };
+
+        const res = await axios.get(url, {
+            params,
+            headers: this.getQuarkHeaders(cookie, shareId),
+            timeout: 15000
+        });
+
+        const list = res.data?.data?.list || [];
+        return list.map((item: any) => ({
+            id: item.fid,
+            name: item.file_name,
+            share_fid_token: '',
+            file_type: item.file_type,
+            pid: pdirFid
+        }));
+    }
+
+    private async createQuarkFolder(cookie: string, shareId: string, parentFid: string, name: string): Promise<string> {
+        const url = 'https://drive.quark.cn/1/clouddrive/file';
+        const params = {
+            pr: 'ucpro',
+            fr: 'pc',
+            uc_param_str: '',
+            app: 'clouddrive',
+            __dt: Math.floor((1 + Math.random() * 4) * 60 * 1000),
+            __t: Math.floor(Date.now() / 1000)
+        };
+
+        try {
+            const res = await axios.post(url, { pdir_fid: parentFid, file_name: name, dir: true }, {
+                params,
+                headers: this.getQuarkHeaders(cookie, shareId),
+                timeout: 15000
+            });
+
+            const fid = res.data?.data?.fid;
+            if (fid) return fid;
+        } catch (e: any) {
+            const status = e.response?.data?.status;
+            const code = e.response?.data?.code;
+            if (!(status === 400 && code === 23008)) {
+                throw e;
+            }
+        }
+
+        const list = await this.listQuarkDriveFiles(cookie, shareId, parentFid);
+        const folder = list.find(item => item.file_type !== 1 && item.name === name);
+        if (folder) return folder.id;
+
+        throw new Error('创建目标目录失败');
+    }
+
     /**
      * 获取分享链接的文件列表快照
      */
@@ -336,35 +400,23 @@ export class CloudStorageService {
             }
 
             let filesToSave: QuarkFile[] = [];
+            let shareTree: QuarkFile[] = [];
             if (selectiveFiles && selectiveFiles.length > 0) {
-                const groupedByPid = new Map<string, QuarkFile[]>();
-                for (const file of selectiveFiles) {
-                    const pid = file.pid || pdirFid;
-                    const list = groupedByPid.get(pid);
-                    if (list) {
-                        list.push(file);
-                    } else {
-                        groupedByPid.set(pid, [file]);
+                shareTree = await this.getQuarkFileList(cookie, shareId, stoken, pdirFid, true);
+                const latestMap = new Map(shareTree.map(item => [item.id, item]));
+                const refreshed = selectiveFiles.map(file => {
+                    const latest = latestMap.get(file.id);
+                    if (!latest) {
+                        return null;
                     }
-                }
-
-                const refreshed: QuarkFile[] = [];
-                for (const [pid, group] of groupedByPid.entries()) {
-                    const latestList = await this.getQuarkFileList(cookie, shareId, stoken, pid);
-                    const latestMap = new Map(latestList.map(item => [item.id, item]));
-                    for (const file of group) {
-                        const latest = latestMap.get(file.id);
-                        if (latest) {
-                            refreshed.push({
-                                ...file,
-                                name: latest.name,
-                                share_fid_token: latest.share_fid_token,
-                                file_type: latest.file_type,
-                                pid: latest.pid
-                            });
-                        }
-                    }
-                }
+                    return {
+                        ...file,
+                        name: latest.name,
+                        share_fid_token: latest.share_fid_token,
+                        file_type: latest.file_type,
+                        pid: latest.pid
+                    };
+                }).filter(Boolean) as QuarkFile[];
 
                 if (refreshed.length !== selectiveFiles.length) {
                     return { success: false, message: '分享中存在无法定位的文件，转存失败', errorType: 'user' };
@@ -383,23 +435,35 @@ export class CloudStorageService {
                 return { success: false, message: '未找到可转存的文件', errorType: 'user' };
             }
 
+            if (shareTree.length === 0) {
+                shareTree = await this.getQuarkFileList(cookie, shareId, stoken, pdirFid, true);
+            }
+
+            const shareFolderMap = new Map<string, QuarkFile>();
+            for (const item of shareTree) {
+                if (item.file_type !== 1) {
+                    shareFolderMap.set(item.id, item);
+                }
+            }
+
             const saveDt = Math.floor((1 + Math.random() * 4) * 60 * 1000);
             const saveTs = Math.floor(Date.now() / 1000);
             const commonParams = `pr=ucpro&fr=pc&uc_param_str=&app=clouddrive&__dt=${saveDt}&__t=${saveTs}`;
             const domains = ['https://drive.quark.cn', 'https://drive-h.quark.cn', 'https://pan.quark.cn'];
 
-            const attemptSave = async (files: QuarkFile[]): Promise<TransferResult> => {
+            const attemptSave = async (files: QuarkFile[], groupPdirFid: string, destinationFid: string): Promise<TransferResult> => {
                 const fidList = files.map(f => f.id);
                 const fidTokenList = files.map(f => f.share_fid_token);
                 const names = files.map(f => f.name);
+                const effectivePdirFid = groupPdirFid || pdirFid || '0';
 
                 const saveParams = {
                     fid_list: fidList,
                     fid_token_list: fidTokenList,
-                    to_pdir_fid: targetFolderId,
+                    to_pdir_fid: destinationFid,
                     pwd_id: shareId,
                     stoken: stoken,
-                    pdir_fid: '0',
+                    pdir_fid: effectivePdirFid,
                     scene: 'link'
                 };
 
@@ -467,9 +531,48 @@ export class CloudStorageService {
                 }
             }
 
+            const driveFolderCache = new Map<string, QuarkFile[]>();
+            const ensureDriveChildren = async (parentFid: string) => {
+                const cached = driveFolderCache.get(parentFid);
+                if (cached) return cached;
+                const list = await this.listQuarkDriveFiles(cookie, shareId, parentFid);
+                driveFolderCache.set(parentFid, list);
+                return list;
+            };
+
+            const ensurePathFid = async (pathParts: string[]) => {
+                let currentFid = targetFolderId;
+                for (const part of pathParts) {
+                    const list = await ensureDriveChildren(currentFid);
+                    const existing = list.find(item => item.file_type !== 1 && item.name === part);
+                    if (existing) {
+                        currentFid = existing.id;
+                        continue;
+                    }
+                    const createdFid = await this.createQuarkFolder(cookie, shareId, currentFid, part);
+                    driveFolderCache.delete(currentFid);
+                    currentFid = createdFid;
+                }
+                return currentFid;
+            };
+
+            const resolveSharePath = (pid: string) => {
+                const parts: string[] = [];
+                let currentPid = pid;
+                while (currentPid && currentPid !== '0' && currentPid !== pdirFid) {
+                    const folder = shareFolderMap.get(currentPid);
+                    if (!folder) break;
+                    parts.push(folder.name);
+                    currentPid = folder.pid || '0';
+                }
+                return parts.reverse();
+            };
+
             let allNames: string[] = [];
-            for (const groupFiles of groupedFiles.values()) {
-                const result = await attemptSave(groupFiles);
+            for (const [groupPid, groupFiles] of groupedFiles.entries()) {
+                const pathParts = resolveSharePath(groupPid);
+                const destinationFid = await ensurePathFid(pathParts);
+                const result = await attemptSave(groupFiles, groupPid, destinationFid);
                 if (!result.success) {
                     return result;
                 }

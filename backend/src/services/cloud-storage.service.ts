@@ -49,7 +49,7 @@ export class CloudStorageService {
             'Accept': 'application/json, text/plain, */*',
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
             'Content-Type': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) quark-cloud-drive/3.14.2 Chrome/112.0.5615.165 Electron/24.1.3.8 Safari/537.36 Channel/pckk_other_ch',
             'Origin': 'https://pan.quark.cn',
             'Referer': `https://pan.quark.cn/s/${shareId}`,
             'Sec-Ch-Ua': '"Microsoft Edge";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
@@ -335,10 +335,42 @@ export class CloudStorageService {
                 };
             }
 
-            // 2. 获取待转存文件列表
             let filesToSave: QuarkFile[] = [];
             if (selectiveFiles && selectiveFiles.length > 0) {
-                filesToSave = selectiveFiles;
+                const groupedByPid = new Map<string, QuarkFile[]>();
+                for (const file of selectiveFiles) {
+                    const pid = file.pid || pdirFid;
+                    const list = groupedByPid.get(pid);
+                    if (list) {
+                        list.push(file);
+                    } else {
+                        groupedByPid.set(pid, [file]);
+                    }
+                }
+
+                const refreshed: QuarkFile[] = [];
+                for (const [pid, group] of groupedByPid.entries()) {
+                    const latestList = await this.getQuarkFileList(cookie, shareId, stoken, pid);
+                    const latestMap = new Map(latestList.map(item => [item.id, item]));
+                    for (const file of group) {
+                        const latest = latestMap.get(file.id);
+                        if (latest) {
+                            refreshed.push({
+                                ...file,
+                                name: latest.name,
+                                share_fid_token: latest.share_fid_token,
+                                file_type: latest.file_type,
+                                pid: latest.pid
+                            });
+                        }
+                    }
+                }
+
+                if (refreshed.length !== selectiveFiles.length) {
+                    return { success: false, message: '分享中存在无法定位的文件，转存失败', errorType: 'user' };
+                }
+
+                filesToSave = refreshed;
             } else {
                 try {
                     filesToSave = await this.getQuarkFileList(cookie, shareId, stoken, pdirFid);
@@ -351,77 +383,102 @@ export class CloudStorageService {
                 return { success: false, message: '未找到可转存的文件', errorType: 'user' };
             }
 
-            const fidList = filesToSave.map(f => f.id);
-            const fidTokenList = filesToSave.map(f => f.share_fid_token);
-            const names = filesToSave.map(f => f.name);
+            const saveDt = Math.floor((1 + Math.random() * 4) * 60 * 1000);
+            const saveTs = Math.floor(Date.now() / 1000);
+            const commonParams = `pr=ucpro&fr=pc&uc_param_str=&app=clouddrive&__dt=${saveDt}&__t=${saveTs}`;
+            const domains = ['https://drive.quark.cn', 'https://drive-h.quark.cn', 'https://pan.quark.cn'];
 
-            // 3. 执行转存
-            const commonParams = `pr=ucpro&fr=pc&__t=${Date.now()}`;
-            const saveParams = {
-                fid_list: fidList,
-                fid_token_list: fidTokenList,
-                to_pdir_fid: targetFolderId,
-                pwd_id: shareId,
-                stoken: stoken,
-                pdir_fid: pdirFid,
-                scene: 'link'
+            const attemptSave = async (files: QuarkFile[]): Promise<TransferResult> => {
+                const fidList = files.map(f => f.id);
+                const fidTokenList = files.map(f => f.share_fid_token);
+                const names = files.map(f => f.name);
+
+                const saveParams = {
+                    fid_list: fidList,
+                    fid_token_list: fidTokenList,
+                    to_pdir_fid: targetFolderId,
+                    pwd_id: shareId,
+                    stoken: stoken,
+                    pdir_fid: '0',
+                    scene: 'link'
+                };
+
+                let lastError = '';
+                let lastErrorType: 'user' | 'system' = 'system';
+
+                for (const domain of domains) {
+                    try {
+                        console.log(`[CloudStorageService] Executing Quark save via ${domain}`);
+                        const response = await axios.post(`${domain}/1/clouddrive/share/sharepage/save?${commonParams}`, saveParams, {
+                            headers: this.getQuarkHeaders(cookie, shareId),
+                            timeout: 30000
+                        });
+
+                        if (response.data && (response.data.status === 200 || response.data.code === 0)) {
+                            console.log(`[CloudStorageService] Quark transfer successful for shareId: ${shareId}, names: ${names.join(', ')}`);
+                            return { success: true, message: '夸克转存成功', names };
+                        }
+                        
+                        const errorMsg = response.data?.message || '夸克转存失败';
+                        const status = response.data?.status || response.data?.code;
+                        
+                        if (status === 401 || status === 31001) {
+                            return { success: false, message: '夸克登录失效，请更新 Cookie', errorType: 'user' };
+                        }
+                        
+                        if (status === 403 || errorMsg.includes('违规') || errorMsg.includes('封禁') || errorMsg.includes('黑名单')) {
+                            console.warn(`[CloudStorageService] Quark save 403 error body:`, JSON.stringify(response.data));
+                            if (errorMsg.includes('已存在') || errorMsg.includes('重复')) {
+                                return { success: true, message: '资源已在网盘中', names };
+                            }
+                            return { success: false, message: `夸克转存失败: ${errorMsg}`, errorType: 'user' };
+                        }
+
+                        lastError = errorMsg;
+                    } catch (e: any) {
+                        const errorData = e.response?.data;
+                        console.warn(`[CloudStorageService] Quark save failed via ${domain}: ${e.message}`, errorData ? `Error Body: ${JSON.stringify(errorData)}` : '');
+                        
+                        lastError = e.message;
+                        if (e.response?.status === 401) {
+                            return { success: false, message: '夸克登录失效，请重新设置 Cookie', errorType: 'user' };
+                        }
+                        if (e.response?.status === 403) {
+                            if (errorData?.message?.includes('已存在') || errorData?.message?.includes('重复')) {
+                                return { success: true, message: '资源已在网盘中', names };
+                            }
+                            lastErrorType = 'user';
+                            lastError = `拒绝访问: ${errorData?.message || '可能是账号异常或触发风控'}`;
+                        }
+                    }
+                }
+
+                return { success: false, message: lastError || '转存失败', errorType: lastErrorType };
             };
 
-            const domains = ['https://drive-h.quark.cn', 'https://pan.quark.cn'];
-            let lastError = '';
-            let lastErrorType: 'user' | 'system' = 'system';
-
-            for (const domain of domains) {
-                try {
-                    console.log(`[CloudStorageService] Executing Quark save via ${domain}`);
-                    const response = await axios.post(`${domain}/1/clouddrive/share/sharepage/save?${commonParams}`, saveParams, {
-                        headers: this.getQuarkHeaders(cookie, shareId),
-                        timeout: 30000
-                    });
-
-                    if (response.data && (response.data.status === 200 || response.data.code === 0)) {
-                        console.log(`[CloudStorageService] Quark transfer successful for shareId: ${shareId}, names: ${names.join(', ')}`);
-                        return { success: true, message: '夸克转存成功', names };
-                    }
-                    
-                    const errorMsg = response.data?.message || '夸克转存失败';
-                    const status = response.data?.status || response.data?.code;
-                    
-                    if (status === 401 || status === 31001) {
-                        return { success: false, message: '夸克登录失效，请更新 Cookie', errorType: 'user' };
-                    }
-                    
-                    // 处理违规、封禁等用户可见错误
-                    if (status === 403 || errorMsg.includes('违规') || errorMsg.includes('封禁') || errorMsg.includes('黑名单')) {
-                        console.warn(`[CloudStorageService] Quark save 403 error body:`, JSON.stringify(response.data));
-                        // 如果虽然是 403 但提示已存在，可以视为成功
-                        if (errorMsg.includes('已存在') || errorMsg.includes('重复')) {
-                            return { success: true, message: '资源已在网盘中', names };
-                        }
-                        return { success: false, message: `夸克转存失败: ${errorMsg}`, errorType: 'user' };
-                    }
-
-                    lastError = errorMsg;
-                } catch (e: any) {
-                    const errorData = e.response?.data;
-                    console.warn(`[CloudStorageService] Quark save failed via ${domain}: ${e.message}`, errorData ? `Error Body: ${JSON.stringify(errorData)}` : '');
-                    
-                    lastError = e.message;
-                    if (e.response?.status === 401) {
-                        return { success: false, message: '夸克登录失效，请重新设置 Cookie', errorType: 'user' };
-                    }
-                    if (e.response?.status === 403) {
-                        // 如果错误体中包含已存在信息
-                        if (errorData?.message?.includes('已存在') || errorData?.message?.includes('重复')) {
-                            return { success: true, message: '资源已在网盘中', names };
-                        }
-                        lastErrorType = 'user';
-                        lastError = `拒绝访问: ${errorData?.message || '可能是账号异常或触发风控'}`;
-                    }
+            const groupedFiles = new Map<string, QuarkFile[]>();
+            for (const file of filesToSave) {
+                const pid = file.pid || pdirFid;
+                const list = groupedFiles.get(pid);
+                if (list) {
+                    list.push(file);
+                } else {
+                    groupedFiles.set(pid, [file]);
                 }
             }
 
-            return { success: false, message: lastError || '转存失败', errorType: lastErrorType };
+            let allNames: string[] = [];
+            for (const groupFiles of groupedFiles.values()) {
+                const result = await attemptSave(groupFiles);
+                if (!result.success) {
+                    return result;
+                }
+                if (result.names && result.names.length > 0) {
+                    allNames = allNames.concat(result.names);
+                }
+            }
+
+            return { success: true, message: '夸克转存成功', names: allNames };
         } catch (error: any) {
             console.error(`[CloudStorageService] Quark transfer exception for ${shareUrl}:`, error.message);
             return { success: false, message: `夸克转存异常: ${error.message}`, errorType: 'system' };

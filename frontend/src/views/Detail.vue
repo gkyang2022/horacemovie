@@ -266,10 +266,30 @@ const confirmCreateTracker = async () => {
   const row = currentResourceForTracker.value;
   const panType = getCloudTypeFromResource(row);
   
+  // 生成新的任务名称格式: pansou名称-网盘名称-sharecode-receivecode
+  let taskName = row.name;
+  if (panType === 'quark') {
+    const url = row.url || '';
+    // 匹配 sharecode: /s/xxx
+    const shareCodeMatch = url.match(/\/s\/([a-zA-Z0-9]+)/);
+    // 匹配 receivecode (pwd): pwd=xxx
+    const pwdMatch = url.match(/[?&]pwd=([a-zA-Z0-9]+)/);
+    
+    const shareCode = shareCodeMatch ? shareCodeMatch[1] : '';
+    const pwd = pwdMatch ? pwdMatch[1] : '';
+    
+    if (shareCode) {
+      taskName = `${row.name}-quark-${shareCode}`;
+      if (pwd) {
+        taskName += `-${pwd}`;
+      }
+    }
+  }
+  
   trackerSubmitting.value = true;
   try {
     await request.post('/tracker/tasks', {
-      name: row.name,
+      name: taskName,
       share_url: row.url,
       pan_type: panType,
       interval_hours: trackerConfigForm.value.interval_hours,

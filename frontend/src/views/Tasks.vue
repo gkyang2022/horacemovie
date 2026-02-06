@@ -90,7 +90,7 @@
             <el-table-column label="操作" width="150" fixed="right">
               <template #default="{ row }">
                 <div class="op-buttons">
-                  <el-button link type="danger" @click="handleSyncOp('cancel', row.id)">取消</el-button>
+                  <el-button size="small" type="danger" @click="handleSyncOp('cancel', row.id)">取消</el-button>
                 </div>
               </template>
             </el-table-column>
@@ -155,8 +155,8 @@
             <el-table-column label="操作" width="150" fixed="right">
               <template #default="{ row }">
                 <div class="op-buttons">
-                  <el-button link type="danger" @click="handleSyncOp('delete', row.id)">删除</el-button>
-                  <el-button link type="primary" @click="handleSyncOp('retry', row.id)" v-if="row.state === 7 || row.state === 4">重试</el-button>
+                  <el-button size="small" type="danger" @click="handleSyncOp('delete', row.id)">删除</el-button>
+                  <el-button size="small" type="primary" @click="handleSyncOp('retry', row.id)" v-if="row.state === 7 || row.state === 4">重试</el-button>
                 </div>
               </template>
             </el-table-column>

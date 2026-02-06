@@ -409,7 +409,7 @@ export class TelegramService {
         if (openlistSourcePath) {
             const { taskId, error } = await openlistService.copyFile(openlistSourcePath, result.names || [], openlistDefaultPath);
             if (taskId) {
-                syncMsg = `\nOpenList 同步任务: ${taskId}`;
+                syncMsg = `\nOpenList 同步任务创建成功`;
             } else if (error) {
                 syncMsg = `\nOpenList 同步失败: ${error}`;
             }

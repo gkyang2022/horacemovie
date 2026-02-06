@@ -1,24 +1,32 @@
-version: '3.8'
-
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: horacemovie-backend
     ports:
       - "8008:8008"
     volumes:
       - ./backend/data:/app/data
     environment:
-      - NODE_ENV=production
-      - PORT=8008
-      - DB_PATH=./data/horacemovie.db
-    restart: always
+      NODE_ENV: production
+      PORT: "8008"
+      DB_PATH: /app/data/horacemovie.db
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8008/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: horacemovie-frontend
     ports:
       - "8080:80"
     depends_on:
-      - backend
-    restart: always
+      backend:
+        condition: service_healthy
+    restart: unless-stopped

@@ -8,6 +8,7 @@ export class TelegramService {
     private static instance: TelegramService;
     private bot: Telegraf | null = null;
     private initialized = false;
+    private botUsername: string | null = null;
 
     private constructor() {
     }
@@ -41,33 +42,85 @@ export class TelegramService {
             if (token && token.value) {
                 console.log('[TelegramService] Initializing Telegram Bot with token from DB');
                 this.bot = new Telegraf(token.value);
+                try {
+                    const me = await this.bot.telegram.getMe();
+                    this.botUsername = me.username ? `@${me.username}` : null;
+                } catch (error: any) {
+                    console.error('[TelegramService] Failed to load bot username:', error.message);
+                }
+
+                this.bot.on('message', async (ctx, next) => {
+                    const userId = String(ctx.from?.id || '');
+                    const username = ctx.from?.username || '';
+                    const firstName = ctx.from?.first_name || '';
+                    const lastName = ctx.from?.last_name || '';
+                    const text = 'text' in ctx.message ? ctx.message.text || '' : '';
+                    console.log(`[TelegramService] Incoming message from ${userId} ${username} ${firstName} ${lastName}: ${text}`);
+                    if (text && this.botUsername && text.includes(this.botUsername)) {
+                        if (!(await this.isAuthorized(ctx))) {
+                            return ctx.reply('无权限使用该命令');
+                        }
+                        const keyword = text.replace(this.botUsername, '').trim();
+                        await this.replySearch(ctx, keyword);
+                        return;
+                    }
+                    return next();
+                });
 
                 this.bot.command('search', async (ctx) => {
+                    if (!(await this.isAuthorized(ctx))) {
+                        return ctx.reply('无权限使用该命令');
+                    }
+
+                    const keyword = ctx.message.text.split(' ').slice(1).join(' ');
+                    await this.replySearch(ctx, keyword);
+                });
+
+                this.bot.on('inline_query', async (ctx) => {
+                    const { userIds } = await this.getTelegramConfig();
+                    const requesterId = String(ctx.from?.id || '');
+                    if (userIds.length > 0 && !userIds.includes(requesterId)) {
+                        return ctx.answerInlineQuery([], { cache_time: 0, is_personal: true });
+                    }
+                    const keyword = (ctx.inlineQuery?.query || '').trim();
+                    if (!keyword) {
+                        return ctx.answerInlineQuery([], { cache_time: 0, is_personal: true });
+                    }
+                    try {
+                        const results = await pansouService.search(keyword);
+                        const selected = this.pickTopResults(results, 10);
+                        const items = selected.map((res, index) => ({
+                            type: 'article' as const,
+                            id: `${index}-${res.url}`,
+                            title: this.truncateTitle(res.name),
+                            description: res.url,
+                            input_message_content: {
+                                message_text: `${this.truncateTitle(res.name)}\n${res.url}`
+                            }
+                        }));
+                        return ctx.answerInlineQuery(items, { cache_time: 5, is_personal: true });
+                    } catch (e: any) {
+                        console.error(`[TelegramService] Inline search error for "${keyword}":`, e.message);
+                        return ctx.answerInlineQuery([], { cache_time: 0, is_personal: true });
+                    }
+                });
+
+                this.bot.start(async (ctx) => {
                     const { userIds } = await this.getTelegramConfig();
                     const requesterId = String(ctx.from?.id || '');
                     if (userIds.length > 0 && !userIds.includes(requesterId)) {
                         return ctx.reply('无权限使用该命令');
                     }
-
-                    const keyword = ctx.message.text.split(' ').slice(1).join(' ');
-                    if (!keyword) return ctx.reply('请输入搜索关键词, 例如: /search 肖申克的救赎');
-                    
-                    console.log(`[TelegramService] Bot received /search command for: "${keyword}"`);
-                    ctx.reply(`正在搜索: ${keyword}...`);
-                    try {
-                        const results = await pansouService.search(keyword);
-                        console.log(`[TelegramService] Bot search for "${keyword}" returned ${results.length} results`);
-                        if (results.length === 0) return ctx.reply('未找到相关资源');
-                        
-                        let msg = `找到以下资源:\n`;
-                        results.slice(0, 10).forEach((res, i) => {
-                            msg += `${i + 1}. ${res.name}\n🔗 ${res.url}\n\n`;
-                        });
-                        ctx.reply(msg);
-                    } catch (e: any) {
-                        console.error(`[TelegramService] Bot search error for "${keyword}":`, e.message);
-                        ctx.reply(`搜索出错: ${e.message}`);
-                    }
+                    ctx.reply(
+                        '欢迎使用 HoraceMovie Bot，请点击按钮开始搜索。',
+                        {
+                            reply_markup: {
+                                inline_keyboard: [
+                                    [{ text: '开始搜索', switch_inline_query_current_chat: '' }]
+                                ]
+                            }
+                        }
+                    );
                 });
 
                 this.bot.help(async (ctx) => {
@@ -89,6 +142,74 @@ export class TelegramService {
         } catch (error: any) {
             console.error('[TelegramService] Failed to initialize bot:', error.message);
         }
+    }
+
+    private async isAuthorized(ctx: any) {
+        const { userIds } = await this.getTelegramConfig();
+        const requesterId = String(ctx.from?.id || '');
+        return userIds.length === 0 || userIds.includes(requesterId);
+    }
+
+    private async replySearch(ctx: any, keyword: string) {
+        if (!keyword) return ctx.reply('请输入搜索关键词, 例如: /search 肖申克的救赎');
+        console.log(`[TelegramService] Bot received search for: "${keyword}"`);
+        const loadingMsg = await ctx.reply(`正在搜索: ${keyword}...`);
+        const cleanup = async () => {
+            if (loadingMsg?.message_id) {
+                try {
+                    await ctx.deleteMessage(loadingMsg.message_id);
+                } catch {}
+            }
+        };
+        try {
+            const results = await pansouService.search(keyword);
+            console.log(`[TelegramService] Bot search for "${keyword}" returned ${results.length} results`);
+            const selected = this.pickTopResults(results, 10);
+            if (selected.length === 0) {
+                await cleanup();
+                return ctx.reply('未找到相关资源');
+            }
+            
+            let msg = `找到以下资源:\n`;
+            selected.forEach((res, i) => {
+                msg += `${i + 1}. ${this.truncateTitle(res.name)}\n🔗 ${res.url}\n\n`;
+            });
+            await cleanup();
+            ctx.reply(msg);
+        } catch (e: any) {
+            console.error(`[TelegramService] Bot search error for "${keyword}":`, e.message);
+            await cleanup();
+            ctx.reply(`搜索出错: ${e.message}`);
+        }
+    }
+
+    private pickTopResults(results: any[], limit: number) {
+        const normalizeType = (value?: string) => (value || '').toLowerCase();
+        const is115 = (item: any) => normalizeType(item.type) === '115';
+        const isQuark = (item: any) => normalizeType(item.type) === 'quark';
+        const top115 = results.filter(is115).slice(0, 5);
+        const topQuark = results.filter(isQuark).slice(0, 5);
+        const combined = [...top115, ...topQuark];
+        const seen = new Set<string>();
+        combined.forEach(item => {
+            seen.add(item.url || item.name || '');
+        });
+        if (combined.length >= limit) {
+            return combined.slice(0, limit);
+        }
+        const remaining = results.filter(item => {
+            const key = item.url || item.name || '';
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+        return combined.concat(remaining).slice(0, limit);
+    }
+
+    private truncateTitle(title?: string, maxLength = 100) {
+        const value = (title || '').trim();
+        if (value.length <= maxLength) return value;
+        return `${value.slice(0, maxLength)}...`;
     }
 
     public async notify(message: string) {

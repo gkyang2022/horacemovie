@@ -1,14 +1,20 @@
 import { Telegraf } from 'telegraf';
 import { getDb } from '../db/index.js';
 import { PansouService } from './pansou.service.js';
+import { CloudStorageService } from './cloud-storage.service.js';
+import { OpenListService } from './openlist.service.js';
 
 const pansouService = PansouService.getInstance();
+const cloudService = CloudStorageService.getInstance();
+const openlistService = OpenListService.getInstance();
 
 export class TelegramService {
     private static instance: TelegramService;
     private bot: Telegraf | null = null;
     private initialized = false;
     private botUsername: string | null = null;
+    private lastSearchResults = new Map<string, { items: any[]; createdAt: number; page: number; pageSize: number }>();
+    private searchCacheTtlMs = 10 * 60 * 1000;
 
     private constructor() {
     }
@@ -64,6 +70,15 @@ export class TelegramService {
                         await this.replySearch(ctx, keyword);
                         return;
                     }
+                    const trimmed = text.trim();
+                    if (/^\d+$/.test(trimmed)) {
+                        if (!(await this.isAuthorized(ctx))) {
+                            return ctx.reply('无权限使用该命令');
+                        }
+                        const selection = Number(trimmed);
+                        await this.handleSelection(ctx, selection);
+                        return;
+                    }
                     return next();
                 });
 
@@ -74,6 +89,14 @@ export class TelegramService {
 
                     const keyword = ctx.message.text.split(' ').slice(1).join(' ');
                     await this.replySearch(ctx, keyword);
+                });
+
+                this.bot.action('more_results', async (ctx) => {
+                    if (!(await this.isAuthorized(ctx))) {
+                        await ctx.answerCbQuery('无权限使用该命令');
+                        return;
+                    }
+                    await this.handleMoreResults(ctx);
                 });
 
                 this.bot.on('inline_query', async (ctx) => {
@@ -164,18 +187,15 @@ export class TelegramService {
         try {
             const results = await pansouService.search(keyword);
             console.log(`[TelegramService] Bot search for "${keyword}" returned ${results.length} results`);
-            const selected = this.pickTopResults(results, 10);
-            if (selected.length === 0) {
+            const ordered = this.pickTopResults(results, results.length);
+            if (ordered.length === 0) {
                 await cleanup();
                 return ctx.reply('未找到相关资源');
             }
-            
-            let msg = `找到以下资源:\n`;
-            selected.forEach((res, i) => {
-                msg += `${i + 1}. ${this.truncateTitle(res.name)}\n🔗 ${res.url}\n\n`;
-            });
+            this.cacheSearchResults(ctx, ordered, 1, 10);
+            const msg = this.buildSearchMessage(ordered, 1, 10);
             await cleanup();
-            ctx.reply(msg);
+            ctx.reply(msg, this.buildMoreKeyboard(ordered, 1, 10));
         } catch (e: any) {
             console.error(`[TelegramService] Bot search error for "${keyword}":`, e.message);
             await cleanup();
@@ -210,6 +230,151 @@ export class TelegramService {
         const value = (title || '').trim();
         if (value.length <= maxLength) return value;
         return `${value.slice(0, maxLength)}...`;
+    }
+
+    private getSearchKey(ctx: any) {
+        const chatId = ctx.chat?.id ?? ctx.message?.chat?.id ?? ctx.callbackQuery?.message?.chat?.id ?? 'unknown';
+        const userId = ctx.from?.id ?? 'unknown';
+        return `${chatId}:${userId}`;
+    }
+
+    private cacheSearchResults(ctx: any, items: any[], page: number, pageSize: number) {
+        const key = this.getSearchKey(ctx);
+        this.lastSearchResults.set(key, { items, createdAt: Date.now(), page, pageSize });
+    }
+
+    private getCachedResults(ctx: any) {
+        const key = this.getSearchKey(ctx);
+        const record = this.lastSearchResults.get(key);
+        if (!record) return null;
+        if (Date.now() - record.createdAt > this.searchCacheTtlMs) {
+            this.lastSearchResults.delete(key);
+            return null;
+        }
+        return record;
+    }
+
+    private buildSearchMessage(items: any[], page: number, pageSize: number) {
+        const total = items.length;
+        const startIndex = (page - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, total);
+        let msg = `找到以下资源:\n`;
+        items.slice(startIndex, endIndex).forEach((res, i) => {
+            const index = startIndex + i + 1;
+            msg += `${index}. ${this.truncateTitle(res.name)}\n🔗 ${res.url}\n\n`;
+        });
+        msg += `请输入序号转存(1-${total})`;
+        return msg;
+    }
+
+    private buildMoreKeyboard(items: any[], page: number, pageSize: number) {
+        const total = items.length;
+        const totalPages = Math.ceil(total / pageSize);
+        if (page >= totalPages) {
+            return undefined;
+        }
+        return {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '查看更多', callback_data: 'more_results' }]
+                ]
+            }
+        };
+    }
+
+    private async handleMoreResults(ctx: any) {
+        const cached = this.getCachedResults(ctx);
+        if (!cached) {
+            await ctx.answerCbQuery('没有可用的搜索结果');
+            return;
+        }
+        const { items, page, pageSize } = cached;
+        const totalPages = Math.ceil(items.length / pageSize);
+        if (page >= totalPages) {
+            await ctx.answerCbQuery('没有更多结果');
+            return;
+        }
+        const nextPage = page + 1;
+        this.cacheSearchResults(ctx, items, nextPage, pageSize);
+        try {
+            await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
+        } catch {}
+        const msg = this.buildSearchMessage(items, nextPage, pageSize);
+        await ctx.reply(msg, this.buildMoreKeyboard(items, nextPage, pageSize));
+        await ctx.answerCbQuery();
+    }
+
+    private resolveResourceType(item: any): '115' | 'quark' | '' {
+        const type = (item?.type || '').toLowerCase();
+        if (type === '115' || type === 'quark') return type as '115' | 'quark';
+        const url = item?.url || '';
+        if (url.includes('115.com') || url.includes('anxia.com')) return '115';
+        if (url.includes('quark.cn')) return 'quark';
+        return '';
+    }
+
+    private async handleSelection(ctx: any, selection: number) {
+        const cached = this.getCachedResults(ctx);
+        if (!cached || cached.items.length === 0) {
+            return ctx.reply('没有可用的搜索结果，请先搜索');
+        }
+        if (!Number.isFinite(selection) || selection < 1 || selection > cached.items.length) {
+            return ctx.reply(`请输入 1-${cached.items.length} 范围内的序号`);
+        }
+        const item = cached.items[selection - 1];
+        await this.transferByResult(ctx, item);
+    }
+
+    private async transferByResult(ctx: any, item: any) {
+        const type = this.resolveResourceType(item);
+        if (!type) {
+            return ctx.reply('无法识别该资源的网盘类型');
+        }
+
+        const db = getDb();
+        const cookieKey = type === '115' ? 'cookie_115' : 'cookie_quark';
+        const folderKey = type === '115' ? 'folder_id_115' : 'folder_id_quark';
+        const openlistPathKey = type === '115' ? 'openlist_path_115' : 'openlist_path_quark';
+        const settingsRows = await db.all(
+            'SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?)',
+            [cookieKey, folderKey, openlistPathKey, 'openlist_default_path']
+        );
+        const settings: any = {};
+        settingsRows.forEach(row => {
+            settings[row.key] = row.value;
+        });
+
+        const cookie = settings[cookieKey];
+        const targetFolderId = settings[folderKey] || '0';
+        const openlistSourcePath = settings[openlistPathKey];
+        const openlistDefaultPath = settings['openlist_default_path'];
+
+        if (!cookie) {
+            return ctx.reply(`未配置 ${type} 网盘 Cookie`);
+        }
+
+        let result;
+        if (type === '115') {
+            result = await cloudService.saveTo115(cookie, item.url, targetFolderId);
+        } else {
+            result = await cloudService.saveToQuark(cookie, item.url, targetFolderId);
+        }
+
+        if (!result.success) {
+            return ctx.reply(`转存失败: ${result.message}`);
+        }
+
+        let syncMsg = '';
+        if (openlistSourcePath) {
+            const { taskId, error } = await openlistService.copyFile(openlistSourcePath, result.names || [], openlistDefaultPath);
+            if (taskId) {
+                syncMsg = `\nOpenList 同步任务: ${taskId}`;
+            } else if (error) {
+                syncMsg = `\nOpenList 同步失败: ${error}`;
+            }
+        }
+
+        return ctx.reply(`转存成功: ${result.message}${syncMsg}`);
     }
 
     public async notify(message: string) {

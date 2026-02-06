@@ -185,6 +185,18 @@
             {{ row.last_run_at ? new Date(row.last_run_at).toLocaleString() : '未运行' }}
           </template>
         </el-table-column>
+        <el-table-column label="运行结果" width="120">
+          <template #default="{ row }">
+            <el-tag :type="getRunTagType(row.last_run_status)">
+              {{ getRunStatusText(row.last_run_status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="结果详情" min-width="220" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.last_run_message || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">
             <el-tag :type="row.status === 'active' ? 'success' : 'info'">
@@ -518,6 +530,19 @@ const getUnitLabel = (unit: string) => {
   return labels[unit] || '小时';
 };
 
+const getRunStatusText = (status?: string) => {
+  if (status === 'success') return '成功';
+  if (status === 'failed') return '失败';
+  if (status === 'skipped') return '跳过';
+  return '未知';
+};
+
+const getRunTagType = (status?: string) => {
+  if (status === 'success') return 'success';
+  if (status === 'failed') return 'danger';
+  return 'info';
+};
+
 const fetchTrackerTasks = async () => {
   trackerLoading.value = true;
   try {
@@ -606,13 +631,21 @@ const handleTrackerDelete = (row: any) => {
 };
 
 // --- 初始化与定时器 ---
+let trackerTimer: any = null;
+
 const startPolling = () => {
   fetchSyncTasks();
   fetchTrackerTasks();
   syncTimer = setInterval(() => {
-    fetchSyncTasks();
-    // 追剧任务不需要轮询太快，或者可以分开轮询
-  }, 1000);
+    if (activeMainTab.value === 'sync') {
+      fetchSyncTasks();
+    }
+  }, 5000);
+  trackerTimer = setInterval(() => {
+    if (activeMainTab.value === 'tracker') {
+      fetchTrackerTasks();
+    }
+  }, 5000);
 };
 
 onMounted(() => {
@@ -630,6 +663,7 @@ watch(() => route.query.type, () => {
 
 onUnmounted(() => {
   if (syncTimer) clearInterval(syncTimer);
+  if (trackerTimer) clearInterval(trackerTimer);
 });
 </script>
 

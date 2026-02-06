@@ -50,6 +50,8 @@ export async function initDb() {
             interval_value INTEGER DEFAULT 6,
             interval_unit TEXT DEFAULT 'hour',
             last_run_at DATETIME,
+            last_run_status TEXT,
+            last_run_message TEXT,
             status TEXT DEFAULT 'active', -- 'active', 'paused'
             config TEXT, -- JSON config for filters
             created_at DATETIME DEFAULT (DATETIME('now', 'localtime'))
@@ -96,6 +98,12 @@ export async function initDb() {
         if (!columnNames.includes('interval_unit')) {
             await db.exec('ALTER TABLE tracker_tasks ADD COLUMN interval_unit TEXT DEFAULT "hour"');
         }
+    if (!columnNames.includes('last_run_status')) {
+        await db.exec('ALTER TABLE tracker_tasks ADD COLUMN last_run_status TEXT');
+    }
+    if (!columnNames.includes('last_run_message')) {
+        await db.exec('ALTER TABLE tracker_tasks ADD COLUMN last_run_message TEXT');
+    }
 
     // Fix existing UTC times to local time (UTC+8) - One time migration
     const tzFixed = await db.get('SELECT value FROM settings WHERE key = "timezone_fixed"');

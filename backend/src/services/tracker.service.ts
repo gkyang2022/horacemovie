@@ -134,9 +134,20 @@ export class TrackerService {
     async executeTask(task: any) {
         console.log(`[TrackerService] Executing task logic for: ${task.name} (link-tracking)`);
         const db = getDb();
+        const updateRun = async (status: 'success' | 'failed' | 'skipped', message: string) => {
+            const now = new Date().toLocaleString('sv-SE');
+            await db.run(
+                'UPDATE tracker_tasks SET last_run_at = ?, last_run_status = ?, last_run_message = ? WHERE id = ?',
+                now,
+                status,
+                message,
+                task.id
+            );
+        };
 
         if (!task.share_url) {
             console.warn(`[TrackerService] Task ${task.name} skipped: No share_url found`);
+            await updateRun('failed', '分享链接为空');
             return;
         }
 
@@ -156,11 +167,13 @@ export class TrackerService {
 
             if (!cookie) {
                 console.warn(`[TrackerService] Task ${task.name} skipped: No cookie found for ${type}`);
+                await updateRun('failed', `未配置${type} Cookie`);
                 return;
             }
 
             if (!targetFolderId) {
                 console.warn(`[TrackerService] Task ${task.name} skipped: No target_folder_id found in task record`);
+                await updateRun('failed', '未配置目标目录');
                 return;
             }
 
@@ -169,6 +182,7 @@ export class TrackerService {
             const currentFiles = await cloudService.getShareSnap(type as 'quark', cookie, task.share_url);
             if (currentFiles.length === 0) {
                 console.log(`[TrackerService] No files found in share link for task: ${task.name}`);
+                await updateRun('failed', '分享链接无内容或无法访问');
             } else {
                 let lastFileIds: string[] = [];
                 try {
@@ -213,19 +227,22 @@ export class TrackerService {
                         }
 
                         this.notify(`[HoraceMovie] 追剧成功: ${task.name} 发现 ${newFiles.length} 个新内容，已转存到 ${type}`);
+                        const successMessage = transferRes.message
+                            ? `${transferRes.message}，共${topLevelNewFiles.length}项`
+                            : `已转存${topLevelNewFiles.length}项`;
+                        await updateRun('success', successMessage);
                     } else {
                         console.warn(`[TrackerService] Transfer failed for ${task.name}: ${transferRes.message}`);
+                        await updateRun('failed', transferRes.message || '转存失败');
                     }
                 } else {
                     console.log(`[TrackerService] No new items for task: ${task.name}`);
+                    await updateRun('success', '无新内容');
                 }
             }
-
-            // 更新最后运行时间
-            const now = new Date().toLocaleString('sv-SE');
-            await db.run('UPDATE tracker_tasks SET last_run_at = ? WHERE id = ?', now, task.id);
         } catch (error: any) {
             console.error(`[TrackerService] Task ${task.name} failed:`, error.message);
+            await updateRun('failed', error.message || '运行失败');
         }
     }
 

@@ -214,10 +214,7 @@ const canSave = (row: any) => {
   return type === '115' || type === 'quark';
 };
 
-const getSaveTargetName = (row: any) => {
-  const type = getCloudTypeFromResource(row);
-  return type === '115' ? '115' : '夸克';
-};
+// keep helper to avoid future reference warnings
 
 const fetchData = async () => {
   const { id, type } = route.params;

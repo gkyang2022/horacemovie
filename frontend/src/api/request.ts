@@ -35,8 +35,16 @@ service.interceptors.response.use(
   },
   (error) => {
     const errorMsg = error.response?.data?.error || error.message || '网络错误';
-    console.error(`[API Response Error] ${error.config?.url}:`, errorMsg);
-    ElMessage.error(errorMsg);
+    const requestUrl = error.config?.url || '';
+    let displayMsg = errorMsg;
+    if (
+      requestUrl.includes('/transfer/save') &&
+      (errorMsg.includes('夸克分享 Token 失败') || errorMsg.includes('stoken') || errorMsg.includes('sharepage/token'))
+    ) {
+      displayMsg = '夸克分享链接已失效或被取消，请确认提取码并重新获取分享链接';
+    }
+    console.error(`[API Response Error] ${requestUrl}:`, errorMsg);
+    ElMessage.error(displayMsg);
     return Promise.reject(error);
   }
 );

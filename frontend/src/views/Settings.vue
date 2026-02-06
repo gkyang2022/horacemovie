@@ -64,7 +64,6 @@
         <el-form-item label="User IDs">
           <el-input v-model="form.telegram_user_ids" placeholder="多个用逗号/空格/换行分隔，留空则允许所有用户使用命令" />
         </el-form-item>
-
         <el-divider content-position="left">用户管理</el-divider>
         <el-table :data="users" style="margin-bottom: 20px">
           <el-table-column prop="username" label="用户名" />

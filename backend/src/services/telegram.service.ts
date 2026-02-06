@@ -15,6 +15,8 @@ export class TelegramService {
     private botUsername: string | null = null;
     private lastSearchResults = new Map<string, { items: any[]; createdAt: number; page: number; pageSize: number }>();
     private searchCacheTtlMs = 10 * 60 * 1000;
+    private pendingTrackRequests = new Map<string, { item: any; createdAt: number }>();
+    private trackRequestTtlMs = 10 * 60 * 1000;
 
     private constructor() {
     }
@@ -99,15 +101,31 @@ export class TelegramService {
                     await this.handleMoreResults(ctx);
                 });
 
+                this.bot.action('track_yes', async (ctx) => {
+                    if (!(await this.isAuthorized(ctx))) {
+                        await ctx.answerCbQuery('无权限使用该命令');
+                        return;
+                    }
+                    await this.handleTrackDecision(ctx, true);
+                });
+
+                this.bot.action('track_no', async (ctx) => {
+                    if (!(await this.isAuthorized(ctx))) {
+                        await ctx.answerCbQuery('无权限使用该命令');
+                        return;
+                    }
+                    await this.handleTrackDecision(ctx, false);
+                });
+
                 this.bot.on('inline_query', async (ctx) => {
                     const { userIds } = await this.getTelegramConfig();
                     const requesterId = String(ctx.from?.id || '');
                     if (userIds.length > 0 && !userIds.includes(requesterId)) {
-                        return ctx.answerInlineQuery([], { cache_time: 0, is_personal: true });
+                        return this.safeAnswerInlineQuery(ctx, [], { cache_time: 0, is_personal: true });
                     }
                     const keyword = (ctx.inlineQuery?.query || '').trim();
                     if (!keyword) {
-                        return ctx.answerInlineQuery([], { cache_time: 0, is_personal: true });
+                        return this.safeAnswerInlineQuery(ctx, [], { cache_time: 0, is_personal: true });
                     }
                     try {
                         const results = await pansouService.search(keyword);
@@ -121,10 +139,10 @@ export class TelegramService {
                                 message_text: `${this.truncateTitle(res.name)}\n${res.url}`
                             }
                         }));
-                        return ctx.answerInlineQuery(items, { cache_time: 5, is_personal: true });
+                        return this.safeAnswerInlineQuery(ctx, items, { cache_time: 5, is_personal: true });
                     } catch (e: any) {
                         console.error(`[TelegramService] Inline search error for "${keyword}":`, e.message);
-                        return ctx.answerInlineQuery([], { cache_time: 0, is_personal: true });
+                        return this.safeAnswerInlineQuery(ctx, [], { cache_time: 0, is_personal: true });
                     }
                 });
 
@@ -153,6 +171,13 @@ export class TelegramService {
                         return ctx.reply('无权限使用该命令');
                     }
                     ctx.reply('HoraceMovie Bot 命令:\n/search <关键词> - 搜索网盘资源\n/help - 显示此帮助');
+                });
+
+                this.bot.catch((err: any, ctx: any) => {
+                    if (this.isInlineQueryTooOld(err)) {
+                        return;
+                    }
+                    console.error('[TelegramService] Bot error:', err);
                 });
 
                 (this.bot.launch as any)({
@@ -230,6 +255,22 @@ export class TelegramService {
         const value = (title || '').trim();
         if (value.length <= maxLength) return value;
         return `${value.slice(0, maxLength)}...`;
+    }
+
+    private isInlineQueryTooOld(err: any) {
+        const description = err?.response?.description || err?.message || '';
+        return typeof description === 'string' && description.includes('query is too old');
+    }
+
+    private async safeAnswerInlineQuery(ctx: any, results: any[], options: any) {
+        try {
+            return await ctx.answerInlineQuery(results, options);
+        } catch (err: any) {
+            if (this.isInlineQueryTooOld(err)) {
+                return;
+            }
+            throw err;
+        }
     }
 
     private getSearchKey(ctx: any) {
@@ -374,7 +415,105 @@ export class TelegramService {
             }
         }
 
-        return ctx.reply(`转存成功: ${result.message}${syncMsg}`);
+        let message = `转存成功: ${result.message}${syncMsg}`;
+        if (type === 'quark') {
+            message += '\n是否追剧？';
+            this.cacheTrackRequest(ctx, item);
+            await ctx.reply(message, {
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: '是', callback_data: 'track_yes' },
+                            { text: '否', callback_data: 'track_no' }
+                        ]
+                    ]
+                }
+            });
+            return;
+        }
+        await ctx.reply(message);
+        return;
+    }
+
+    private getTrackKey(ctx: any) {
+        return this.getSearchKey(ctx);
+    }
+
+    private cacheTrackRequest(ctx: any, item: any) {
+        const key = this.getTrackKey(ctx);
+        this.pendingTrackRequests.set(key, { item, createdAt: Date.now() });
+    }
+
+    private getTrackRequest(ctx: any) {
+        const key = this.getTrackKey(ctx);
+        const record = this.pendingTrackRequests.get(key);
+        if (!record) return null;
+        if (Date.now() - record.createdAt > this.trackRequestTtlMs) {
+            this.pendingTrackRequests.delete(key);
+            return null;
+        }
+        return record.item;
+    }
+
+    private clearTrackRequest(ctx: any) {
+        const key = this.getTrackKey(ctx);
+        this.pendingTrackRequests.delete(key);
+    }
+
+    private async handleTrackDecision(ctx: any, accepted: boolean) {
+        try {
+            await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
+        } catch {}
+        if (!accepted) {
+            this.clearTrackRequest(ctx);
+            await ctx.answerCbQuery('已取消');
+            return;
+        }
+        const item = this.getTrackRequest(ctx);
+        if (!item) {
+            await ctx.answerCbQuery('请求已过期');
+            return;
+        }
+        this.clearTrackRequest(ctx);
+        await this.createTrackerTask(ctx, item);
+        await ctx.answerCbQuery();
+    }
+
+    private async createTrackerTask(ctx: any, item: any) {
+        const shareUrl = item?.url || '';
+        if (!shareUrl.includes('quark.cn')) {
+            return ctx.reply('追剧功能仅支持夸克网盘');
+        }
+        const db = getDb();
+        const existing = await db.get('SELECT id FROM tracker_tasks WHERE share_url = ?', shareUrl);
+        if (existing) {
+            return ctx.reply('追剧任务已存在');
+        }
+        const settingsRows = await db.all('SELECT key, value FROM settings WHERE key IN ("cookie_quark", "folder_id_quark")');
+        const settings: any = {};
+        settingsRows.forEach(row => {
+            settings[row.key] = row.value;
+        });
+        const cookie = settings.cookie_quark;
+        const targetFolderId = settings.folder_id_quark;
+        if (!cookie) {
+            return ctx.reply('未配置夸克 Cookie，无法创建追剧任务');
+        }
+        if (!targetFolderId) {
+            return ctx.reply('未配置默认转存目录，无法创建追剧任务');
+        }
+        const currentFiles = await cloudService.getShareSnap('quark', cookie, shareUrl);
+        if (!currentFiles || currentFiles.length === 0) {
+            return ctx.reply('无法获取分享链接内容，请检查链接是否有效或提取码是否正确');
+        }
+        const lastFileIds = JSON.stringify(currentFiles.map((f: any) => f.id));
+        const now = new Date().toLocaleString('sv-SE');
+        const name = this.truncateTitle(item?.name || '未命名资源', 80);
+        await db.run(
+            'INSERT INTO tracker_tasks (name, keyword, share_url, target_folder_id, pan_type, interval_value, interval_unit, last_file_ids, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            name, '', shareUrl, targetFolderId, 'quark', 6, 'hour', lastFileIds, now
+        );
+        return ctx.reply('追剧任务创建成功');
     }
 
     public async notify(message: string) {

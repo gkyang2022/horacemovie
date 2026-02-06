@@ -1,19 +1,15 @@
 import cron from 'node-cron';
 import { getDb } from '../db/index.js';
-import { PansouService } from './pansou.service.js';
 import { CloudStorageService } from './cloud-storage.service.js';
-import { Telegraf } from 'telegraf';
+import { TelegramService } from './telegram.service.js';
 
-const pansouService = PansouService.getInstance();
 const cloudService = CloudStorageService.getInstance();
 
 export class TrackerService {
     private static instance: TrackerService;
-    private bot: Telegraf | null = null;
     private scheduleTask: ReturnType<typeof cron.schedule> | null = null;
 
     private constructor() {
-        this.initBot();
         this.startSchedule();
     }
 
@@ -29,59 +25,6 @@ export class TrackerService {
             console.log('[TrackerService] Stopping scheduler task...');
             this.scheduleTask.stop();
             this.scheduleTask = null;
-        }
-        if (this.bot) {
-            console.log('[TrackerService] Stopping Telegram Bot...');
-            await this.bot.stop();
-            this.bot = null;
-            console.log('[TrackerService] Telegram Bot stopped');
-        }
-    }
-
-    private async initBot() {
-        const db = getDb();
-        try {
-            const token = await db.get('SELECT value FROM settings WHERE key = ?', 'telegram_bot_token');
-            if (token && token.value) {
-                console.log('[TrackerService] Initializing Telegram Bot with token from DB');
-                this.bot = new Telegraf(token.value);
-                
-                // 搜索命令: /search keyword
-                this.bot.command('search', async (ctx) => {
-                    const keyword = ctx.message.text.split(' ').slice(1).join(' ');
-                    if (!keyword) return ctx.reply('请输入搜索关键词, 例如: /search 肖申克的救赎');
-                    
-                    console.log(`[TrackerService] Bot received /search command for: "${keyword}"`);
-                    ctx.reply(`正在搜索: ${keyword}...`);
-                    try {
-                        const results = await pansouService.search(keyword);
-                        console.log(`[TrackerService] Bot search for "${keyword}" returned ${results.length} results`);
-                        if (results.length === 0) return ctx.reply('未找到相关资源');
-                        
-                        let msg = `找到以下资源:\n`;
-                        results.slice(0, 10).forEach((res, i) => {
-                            msg += `${i + 1}. ${res.name}\n🔗 ${res.url}\n\n`;
-                        });
-                        ctx.reply(msg);
-                    } catch (e: any) {
-                        console.error(`[TrackerService] Bot search error for "${keyword}":`, e.message);
-                        ctx.reply(`搜索出错: ${e.message}`);
-                    }
-                });
-
-                // 帮助命令
-                this.bot.help((ctx) => ctx.reply('HoraceMovie Bot 命令:\n/search <关键词> - 搜索网盘资源\n/help - 显示此帮助'));
-
-                // Disable telegraf signal handling to avoid conflict with tsx/manual handlers
-                (this.bot.launch as any)({
-                    handleSignals: false
-                }).catch((err: any) => console.error('[TrackerService] TG Bot launch failed:', err));
-                console.log('[TrackerService] Telegram Bot initialized and launched');
-            } else {
-                console.log('[TrackerService] No Telegram Bot token found in settings, bot will not start');
-            }
-        } catch (error: any) {
-            console.error('[TrackerService] Failed to initialize bot:', error.message);
         }
     }
 
@@ -226,7 +169,7 @@ export class TrackerService {
                                 .catch(err => console.error(`[TrackerService] Auto-sync error:`, err.message));
                         }
 
-                        this.notify(`[HoraceMovie] 追剧成功: ${task.name} 发现 ${newFiles.length} 个新内容，已转存到 ${type}`);
+                        await TelegramService.getInstance().notify(`[HoraceMovie] 追剧成功: ${task.name} 发现 ${newFiles.length} 个新内容，已转存到 ${type}`);
                         const successMessage = transferRes.message
                             ? `${transferRes.message}，共${topLevelNewFiles.length}项`
                             : `已转存${topLevelNewFiles.length}项`;
@@ -243,23 +186,6 @@ export class TrackerService {
         } catch (error: any) {
             console.error(`[TrackerService] Task ${task.name} failed:`, error.message);
             await updateRun('failed', error.message || '运行失败');
-        }
-    }
-
-    private async notify(message: string) {
-        if (this.bot) {
-            const db = getDb();
-            try {
-                const chatId = await db.get('SELECT value FROM settings WHERE key = ?', 'telegram_chat_id');
-                if (chatId && chatId.value) {
-                    console.log(`[TrackerService] Sending Telegram notification: ${message.substring(0, 50)}...`);
-                    this.bot.telegram.sendMessage(chatId.value, message).catch(err => console.error('[TrackerService] Notify failed:', err));
-                } else {
-                    console.warn('[TrackerService] telegram_chat_id not configured, cannot send notification');
-                }
-            } catch (error: any) {
-                console.error('[TrackerService] Failed to fetch chat_id for notification:', error.message);
-            }
         }
     }
 }

@@ -58,6 +58,12 @@
         <el-form-item label="Bot Token">
           <el-input v-model="form.telegram_bot_token" placeholder="123456789:ABCDEF..." type="password" show-password />
         </el-form-item>
+        <el-form-item label="Chat IDs">
+          <el-input v-model="form.telegram_chat_ids" placeholder="多个用逗号/空格/换行分隔，留空则广播到所有配置的 chatId" />
+        </el-form-item>
+        <el-form-item label="User IDs">
+          <el-input v-model="form.telegram_user_ids" placeholder="多个用逗号/空格/换行分隔，留空则允许所有用户使用命令" />
+        </el-form-item>
 
         <el-divider content-position="left">用户管理</el-divider>
         <el-table :data="users" style="margin-bottom: 20px">
@@ -150,7 +156,9 @@ const form = reactive({
   cookie_quark: '',
   folder_id_quark: '',
   openlist_path_quark: '',
-  telegram_bot_token: ''
+  telegram_bot_token: '',
+  telegram_chat_ids: '',
+  telegram_user_ids: ''
 });
 
 const fetchData = async () => {
@@ -196,6 +204,8 @@ const handleSave = async () => {
       openlist_password: form.openlist_password,
       openlist_default_path: form.openlist_default_path,
       telegram_bot_token: form.telegram_bot_token,
+      telegram_chat_ids: form.telegram_chat_ids,
+      telegram_user_ids: form.telegram_user_ids,
       cookie_115: form.cookie_115,
       folder_id_115: form.folder_id_115,
       openlist_path_115: form.openlist_path_115,

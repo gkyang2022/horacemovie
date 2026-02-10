@@ -1,6 +1,8 @@
 # HoraceMovie
 
 一个用于影视资源浏览、搜索与追踪的个人系统，覆盖资源检索、网盘转存、任务追踪与消息通知等核心流程。
+![首页](assets/readme/homepage.png)
+![详情](assets/readme/detail.png)
 
 ## 功能概览
 

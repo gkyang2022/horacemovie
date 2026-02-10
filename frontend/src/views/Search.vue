@@ -2,7 +2,7 @@
   <div class="search">
     <el-input 
       v-model="query" 
-      placeholder="输入关键词搜索影视资源..." 
+      placeholder="输入关键词搜索影视资源（支持直接输入网盘链接进行转存）..." 
       class="search-input"
       @keyup.enter="handleSearch"
     >

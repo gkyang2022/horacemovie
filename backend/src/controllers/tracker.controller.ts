@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getDb } from '../db/index.js';
 import { TrackerService } from '../services/tracker.service.js';
 import { CloudStorageService } from '../services/cloud-storage.service.js';
+import { logger } from '../logger.js';
 
 const cloudService = CloudStorageService.getInstance();
 
@@ -62,7 +63,11 @@ export const runTask = async (req: Request, res: Response) => {
         const trackerService = TrackerService.getInstance();
         // 异步运行，不阻塞响应
         void trackerService.executeTask(task).catch(err => {
-            console.error(`[TrackerController] Manual run failed for task ${id}:`, err.message);
+            logger.error('[TrackerController] Manual run failed', {
+                requestId: (req as any).requestId,
+                taskId: id,
+                error: err
+            });
         });
         
         res.json({ message: '任务已启动' });
@@ -103,7 +108,10 @@ export const createTask = async (req: Request, res: Response) => {
 
         // 初始化快照：获取当前分享内容的文件 ID 列表，确保只追新剧
         const taskName = buildTrackerName(share_url, pan_type);
-        console.log(`[TrackerController] Initializing snapshot for new task: ${taskName}`);
+        logger.info('[TrackerController] Initializing snapshot for new task', {
+            requestId: (req as any).requestId,
+            taskName
+        });
         const currentFiles = await cloudService.getShareSnap('quark', cookie, share_url);
         
         if (!currentFiles || currentFiles.length === 0) {
@@ -119,7 +127,10 @@ export const createTask = async (req: Request, res: Response) => {
         );
         res.json({ message: '追踪任务创建成功' });
     } catch (error: any) {
-        console.error(`[TrackerController] Failed to create task:`, error.message);
+        logger.error('[TrackerController] Failed to create task', {
+            requestId: (req as any).requestId,
+            error
+        });
         res.status(500).json({ error: error.message });
     }
 };

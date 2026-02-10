@@ -1,6 +1,7 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import NodeCache from 'node-cache';
+import { logger } from '../logger.js';
 
 dotenv.config();
 
@@ -79,12 +80,12 @@ export class DoubanService {
         const cacheKey = `popular_${type}_${start}_${count}`;
         const cachedData = this.cache.get<DoubanListResponse>(cacheKey);
         if (cachedData) {
-            console.log(`[DoubanService] Returning cached popular ${type}`);
+            logger.debug('[DoubanService] Returning cached popular', { type });
             return cachedData;
         }
 
         try {
-            console.log(`[DoubanService] Fetching popular ${type}s (start: ${start}, count: ${count})`);
+            logger.info('[DoubanService] Fetching popular items', { type, start, count });
             let collectionId = 'movie_hot_gaia';
             let mediaType: string = 'movie';
             
@@ -146,7 +147,7 @@ export class DoubanService {
             }
             return result;
         } catch (error: any) {
-            console.error(`[DoubanService] Error fetching popular ${type}s:`, error.message);
+            logger.error('[DoubanService] Error fetching popular items', { type, error });
             return { items: [], rawCount: 0 };
         }
     }
@@ -179,7 +180,7 @@ export class DoubanService {
                 pubdate: item.pubdate || (item.release_date ? [item.release_date] : [])
             }));
         } catch (error: any) {
-            console.error(`[DoubanService] Error fetching collection ${collectionId}:`, error.response?.data || error.message);
+            logger.error('[DoubanService] Error fetching collection', { collectionId, error });
             return [];
         }
     }
@@ -199,11 +200,11 @@ export class DoubanService {
     }>(cacheKey);
     
     if (cachedData) {
-      console.log('[DoubanService] Returning cached charts data');
+      logger.debug('[DoubanService] Returning cached charts data');
       return cachedData;
     }
 
-    console.log('[DoubanService] Fetching charts: weekly, new movies, and TV shows');
+    logger.info('[DoubanService] Fetching charts', { types: ['weekly', 'new', 'tvChinese', 'tvGlobal'] });
     const [weekly, newMovies, tvChinese, tvGlobal] = await Promise.all([
       this.getCollectionItems('movie_weekly_best', 'movie', 0, 10),
       this.getCollectionItems('movie_hot', 'movie', 0, 10),
@@ -222,7 +223,8 @@ export class DoubanService {
 
     async search(query: string, start = 0, count = 20): Promise<DoubanMedia[]> {
         try {
-            console.log(`[DoubanService] Searching Douban with query: "${query}" (start: ${start}, count: ${count})`);
+            const trimmedQuery = query.slice(0, 80);
+            logger.info('[DoubanService] Searching Douban', { query: trimmedQuery, start, count });
             const url = `${DOUBAN_API_HOST}/search/subjects`;
             const response = await axios.get(url, {
                 params: {
@@ -248,7 +250,7 @@ export class DoubanService {
                 rawItems = data.items;
             }
 
-            console.log(`[DoubanService] Search returned ${rawItems.length} raw items for "${query}"`);
+            logger.debug('[DoubanService] Search returned raw items', { query: trimmedQuery, count: rawItems.length });
 
             if (rawItems.length === 0) {
                 return [];
@@ -273,7 +275,7 @@ export class DoubanService {
                 return target;
             }).filter((item: any) => item && (item.id || item.target_id) && (item.title));
 
-            console.log(`[DoubanService] Processed ${items.length} valid items for "${query}"`);
+            logger.debug('[DoubanService] Processed search items', { query: trimmedQuery, count: items.length });
 
             return items.map((item: any) => ({
                 id: item.id,
@@ -286,7 +288,8 @@ export class DoubanService {
                 pubdate: item.pubdate || (item.release_date ? [item.release_date] : [])
             }));
         } catch (error: any) {
-            console.error(`[DoubanService] Search error for "${query}":`, error.response?.data || error.message);
+            const trimmedQuery = query.slice(0, 80);
+            logger.error('[DoubanService] Search error', { query: trimmedQuery, error });
             return [];
         }
     }
@@ -302,12 +305,12 @@ export class DoubanService {
         const cacheKey = `detail_${effectiveType}_${id}`;
         const cachedData = this.cache.get<DoubanMedia>(cacheKey);
         if (cachedData) {
-            console.log(`[DoubanService] Returning cached detail for ${effectiveType} (ID: ${id})`);
+            logger.debug('[DoubanService] Returning cached detail', { type: effectiveType, id });
             return cachedData;
         }
 
         try {
-            console.log(`[DoubanService] Fetching detail for ${effectiveType} (ID: ${id})`);
+            logger.info('[DoubanService] Fetching detail', { type: effectiveType, id });
             const url = `${DOUBAN_API_HOST}/${effectiveType}/${id}`;
             const response = await axios.get(url, {
                 params: {
@@ -321,7 +324,7 @@ export class DoubanService {
             });
 
             const item = response.data;
-            console.log(`[DoubanService] Successfully fetched detail for: ${item.title}`);
+            logger.debug('[DoubanService] Successfully fetched detail', { id, title: item.title });
             
             const result = {
                 id: item.id,
@@ -350,10 +353,10 @@ export class DoubanService {
         } catch (error: any) {
             // 如果映射为 tv 失败，尝试作为 movie 再请求一次（部分纪录片可能是电影长片）
             if (effectiveType === 'tv' && error.response?.status === 404) {
-                console.log(`[DoubanService] Detail not found as TV, retrying as movie (ID: ${id})`);
+                logger.warn('[DoubanService] Detail not found as TV, retrying as movie', { id });
                 return this.getDetail(id, 'movie');
             }
-            console.error(`[DoubanService] Error fetching detail for ${id}:`, error.response?.data || error.message);
+            logger.error('[DoubanService] Error fetching detail', { id, error });
             return null;
         }
     }
@@ -362,12 +365,12 @@ export class DoubanService {
         const cacheKey = `recent_hot_${kind}_${type}_${start}_${count}_${category}`;
         const cachedData = this.cache.get<DoubanListResponse>(cacheKey);
         if (cachedData) {
-            console.log(`[DoubanService] Returning cached recent hot ${kind} (${type})`);
+            logger.debug('[DoubanService] Returning cached recent hot', { kind, type });
             return cachedData;
         }
 
         try {
-            console.log(`[DoubanService] Fetching recent hot ${kind} (${type}) (start: ${start}, count: ${count}, category: ${category})`);
+            logger.info('[DoubanService] Fetching recent hot', { kind, type, start, count, category });
             const url = `https://m.douban.com/rexxar/api/v2/subject/recent_hot/${kind}`;
             const response = await axios.get(url, {
                 params: {
@@ -414,7 +417,7 @@ export class DoubanService {
             }
             return result;
         } catch (error: any) {
-            console.error(`[DoubanService] Error fetching recent hot ${kind}:`, error.response?.data || error.message);
+            logger.error('[DoubanService] Error fetching recent hot', { kind, error });
             return { items: [], rawCount: 0 };
         }
     }
@@ -423,12 +426,12 @@ export class DoubanService {
         const cacheKey = `recommendations_${kind}_${JSON.stringify(categories)}_${sort}_${start}_${count}_${tags}_${score_range}`;
         const cachedData = this.cache.get<DoubanListResponse>(cacheKey);
         if (cachedData) {
-            console.log(`[DoubanService] Returning cached recommendations for ${kind}`);
+            logger.debug('[DoubanService] Returning cached recommendations', { kind });
             return cachedData;
         }
 
         try {
-            console.log(`[DoubanService] Fetching recommendations for ${kind} (start: ${start}, count: ${count}, categories: ${JSON.stringify(categories)}, tags: ${tags})`);
+            logger.info('[DoubanService] Fetching recommendations', { kind, start, count, tags });
             const url = `https://m.douban.com/rexxar/api/v2/${kind}/recommend`;
             const response = await axios.get(url, {
                 params: {
@@ -476,7 +479,7 @@ export class DoubanService {
             }
             return result;
         } catch (error: any) {
-            console.error(`[DoubanService] Error fetching recommendations:`, error.response?.data || error.message);
+            logger.error('[DoubanService] Error fetching recommendations', { kind, error });
             return { items: [], rawCount: 0 };
         }
     }
@@ -485,12 +488,12 @@ export class DoubanService {
         const cacheKey = `top_list_${type}_${intervalId}_${start}_${count}`;
         const cachedData = this.cache.get<DoubanMedia[]>(cacheKey);
         if (cachedData) {
-            console.log(`[DoubanService] Returning cached top list for ${type} ${intervalId}`);
+            logger.debug('[DoubanService] Returning cached top list', { type, intervalId });
             return cachedData;
         }
 
         try {
-            console.log(`[DoubanService] Fetching top list for ${type} ${intervalId} (start: ${start}, count: ${count})`);
+            logger.info('[DoubanService] Fetching top list', { type, intervalId, start, count });
             const url = 'https://movie.douban.com/j/chart/top_list';
             const response = await axios.get(url, {
                 params: {
@@ -535,7 +538,7 @@ export class DoubanService {
             }
             return result;
         } catch (error: any) {
-            console.error(`[DoubanService] Error fetching top list:`, error.response?.data || error.message);
+            logger.error('[DoubanService] Error fetching top list', { type, intervalId, error });
             return [];
         }
     }

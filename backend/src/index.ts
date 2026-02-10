@@ -3,6 +3,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { randomUUID } from 'node:crypto';
 import 'express-async-errors';
 import { closeDb, initDb } from './db/index.js';
 import doubanRoutes from './routes/douban.routes.js';
@@ -15,6 +16,7 @@ import taskRoutes from './routes/task.routes.js';
 import { TrackerService } from './services/tracker.service.js';
 import { TelegramService } from './services/telegram.service.js';
 import { DiscordService } from './services/discord.service.js';
+import { logger } from './logger.js';
 import type { Server } from 'node:http';
 import type { Socket } from 'node:net';
 
@@ -24,11 +26,20 @@ const app = express();
 const port = process.env.PORT || 8008;
 
 // Middlewares
+app.use((req, _res, next) => {
+    (req as any).requestId = randomUUID();
+    next();
+});
 app.use(helmet({
     contentSecurityPolicy: false, // For easier dev, adjust for prod
 }));
 app.use(cors());
-app.use(morgan('dev'));
+morgan.token('requestId', (req) => (req as any).requestId || '-');
+const isDev = process.argv[1]?.endsWith('.ts') || process.env.NODE_ENV !== 'production';
+const morganFormat = isDev
+    ? '[:date[iso]] :method :url :status :response-time ms - :res[content-length] reqId=:requestId'
+    : '[:date[iso]] :method :url :status :response-time ms - :res[content-length] reqId=:requestId';
+app.use(morgan(morganFormat));
 app.use(express.json());
 
 // Routes
@@ -49,13 +60,13 @@ app.get('/api/health', (req, res) => {
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     const status = err.status || 500;
     const message = err.message || 'Internal Server Error';
-    
-    console.error(`[GlobalError] ${req.method} ${req.path} - Status: ${status}`);
-    console.error(`[GlobalError] Message: ${message}`);
-    if (status === 500) {
-        console.error(`[GlobalError] Stack: ${err.stack}`);
-    }
-    
+
+    logger.error(`[GlobalError] ${req.method} ${req.path} - Status: ${status}`, {
+        requestId: (req as any).requestId,
+        message,
+        error: err
+    });
+
     res.status(status).json({
         error: message
     });
@@ -70,7 +81,7 @@ async function startServer() {
         await discord.init();
         const tracker = TrackerService.getInstance();
         const server: Server = app.listen(port, () => {
-            console.log(`HoraceMovie Backend running at http://localhost:${port}`);
+            logger.info(`HoraceMovie Backend running at http://localhost:${port}`);
         });
         const sockets = new Set<Socket>();
         server.on('connection', (socket) => {
@@ -79,7 +90,6 @@ async function startServer() {
         });
 
         // Graceful shutdown
-        const isDev = process.argv[1]?.endsWith('.ts') || process.env.NODE_ENV !== 'production';
         let isShuttingDown = false;
         const shutdown = async () => {
             if (isShuttingDown) return;
@@ -139,7 +149,7 @@ async function startServer() {
         process.once('SIGINT', () => void shutdown());
 
     } catch (error) {
-        console.error('Failed to start server:', error);
+        logger.error('Failed to start server', { error });
         process.exit(1);
     }
 }

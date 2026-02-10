@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { DoubanService } from '../services/douban.service.js';
+import { logger } from '../logger.js';
 
 const doubanService = DoubanService.getInstance();
 
@@ -10,7 +11,14 @@ export const getPopular = async (req: Request, res: Response) => {
     const start = parseInt(req.query.start as string) || 0;
     const count = parseInt(req.query.count as string) || 20;
 
-    console.log(`[DoubanController] GET /api/douban/popular?type=${type}&sub_type=${subType || ''}&category=${category || ''}&start=${start}&count=${count}`);
+    logger.debug('[DoubanController] GET /api/douban/popular', {
+        requestId: (req as any).requestId,
+        type,
+        subType,
+        category,
+        start,
+        count
+    });
     
     let result;
     if (type === 'tv' && subType) {
@@ -59,7 +67,7 @@ export const getDetail = async (req: Request, res: Response) => {
 };
 
 export const getCharts = async (req: Request, res: Response) => {
-    console.log('[DoubanController] GET /api/douban/charts');
+    logger.debug('[DoubanController] GET /api/douban/charts', { requestId: (req as any).requestId });
     const result = await doubanService.getCharts();
     res.json(result);
 };
@@ -70,7 +78,13 @@ export const getTopList = async (req: Request, res: Response) => {
     const start = parseInt(req.query.start as string) || 0;
     const count = parseInt(req.query.count as string) || 20;
 
-    console.log(`[DoubanController] GET /api/douban/top-list?type=${type}&interval_id=${intervalId}&start=${start}&count=${count}`);
+    logger.debug('[DoubanController] GET /api/douban/top-list', {
+        requestId: (req as any).requestId,
+        type,
+        intervalId,
+        start,
+        count
+    });
     const result = await doubanService.getTopList(type, intervalId, start, count);
     res.json(result);
 };
@@ -87,7 +101,10 @@ export const getRecommendations = async (req: Request, res: Response) => {
         try {
             categories = JSON.parse(req.query.categories as string);
         } catch (e) {
-            console.error('[DoubanController] Failed to parse categories JSON:', e);
+            logger.warn('[DoubanController] Failed to parse categories JSON', {
+                requestId: (req as any).requestId,
+                error: e
+            });
         }
     }
 
@@ -141,7 +158,15 @@ export const getRecommendations = async (req: Request, res: Response) => {
     const tags = tagList.join(',');
     const score_range = (req.query.score_range as string) || '0,10';
 
-    console.log(`[DoubanController] GET /api/douban/recommendations?kind=${kind}&categories=${JSON.stringify(categories)}&tags=${tags}&sort=${sort}&start=${start}&count=${count}`);
+    logger.debug('[DoubanController] GET /api/douban/recommendations', {
+        requestId: (req as any).requestId,
+        kind,
+        categories,
+        tags,
+        sort,
+        start,
+        count
+    });
     const result = await doubanService.getRecommendations(kind, categories, sort, start, count, tags, score_range);
     res.json(result);
 };

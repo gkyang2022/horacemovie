@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import { logger } from '../logger.js';
 
 dotenv.config();
 
@@ -22,7 +23,7 @@ export async function initDb() {
         driver: sqlite3.Database
     });
 
-    console.log(`Connected to SQLite database at ${dbPath}`);
+    logger.info('[Db] Connected to SQLite database', { dbPath });
 
     // Initialize tables
     await db.exec(`
@@ -64,21 +65,21 @@ export async function initDb() {
 
     // Remove redundant target_folder_name if exists
     if (columnNames.includes('target_folder_name')) {
-        console.log('[Db] Removing redundant column: tracker_tasks.target_folder_name');
+        logger.info('[Db] Removing redundant column', { column: 'tracker_tasks.target_folder_name' });
         try {
             await db.exec('ALTER TABLE tracker_tasks DROP COLUMN target_folder_name');
         } catch (e) {
-            console.warn('[Db] Failed to drop target_folder_name, it might be an older SQLite version');
+            logger.warn('[Db] Failed to drop target_folder_name', { error: e });
         }
     }
     
     // Rename interval_hours to interval_value if it exists
     if (columnNames.includes('interval_hours') && !columnNames.includes('interval_value')) {
-        console.log('[Db] Migrating tracker_tasks: interval_hours -> interval_value');
+        logger.info('[Db] Migrating tracker_tasks interval_hours -> interval_value');
         try {
             await db.exec('ALTER TABLE tracker_tasks RENAME COLUMN interval_hours TO interval_value');
         } catch (e) {
-            console.warn('[Db] Failed to rename interval_hours, trying manual migration');
+            logger.warn('[Db] Failed to rename interval_hours', { error: e });
             // Older SQLite fallback or handle error
         }
     }
@@ -108,7 +109,7 @@ export async function initDb() {
     // Fix existing UTC times to local time (UTC+8) - One time migration
     const tzFixed = await db.get('SELECT value FROM settings WHERE key = "timezone_fixed"');
     if (!tzFixed) {
-        console.log('[Db] Migrating existing UTC times to local time (UTC+8)...');
+        logger.info('[Db] Migrating existing UTC times to local time (UTC+8)');
         try {
             await db.exec(`
                 UPDATE tracker_tasks 
@@ -125,9 +126,9 @@ export async function initDb() {
                 
                 INSERT OR REPLACE INTO settings (key, value) VALUES ("timezone_fixed", "true");
             `);
-            console.log('[Db] Timezone migration completed.');
+            logger.info('[Db] Timezone migration completed');
         } catch (e: any) {
-            console.warn('[Db] Timezone migration failed:', e.message);
+            logger.warn('[Db] Timezone migration failed', { error: e });
         }
     }
 
@@ -137,10 +138,11 @@ export async function initDb() {
         const randomPassword = crypto.randomBytes(6).toString('hex'); // 12位随机密码
         const now = new Date().toLocaleString('sv-SE');
         await db.run('INSERT INTO users (username, password, role, created_at) VALUES (?, ?, ?, ?)', 'admin', randomPassword, 'admin', now);
+        logger.warn('[Db] Initial admin created', { username: 'admin' });
         console.log('************************************************');
         console.log('*                                              *');
         console.log('*   Initial Admin Created Successfully!        *');
-        console.log(`*   Username: admin                            *`);
+        console.log('*   Username: admin                            *');
         console.log(`*   Password: ${randomPassword}                 *`);
         console.log('*                                              *');
         console.log('*   Please change this password after login.   *');

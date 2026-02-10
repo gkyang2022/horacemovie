@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getDb } from '../db/index.js';
+import { logger } from '../logger.js';
 
 export class OpenListService {
     private static instance: OpenListService;
@@ -30,7 +31,7 @@ export class OpenListService {
         const password = config['openlist_password'];
 
         if (!baseUrl || !username || !password) {
-            console.error('OpenList config incomplete');
+            logger.warn('[OpenListService] Config incomplete');
             return null;
         }
 
@@ -47,7 +48,7 @@ export class OpenListService {
             }
             return null;
         } catch (error: any) {
-            console.error('OpenList login error:', error.message);
+            logger.error('[OpenListService] Login error', { error });
             return null;
         }
     }
@@ -75,7 +76,7 @@ export class OpenListService {
             }
             return [];
         } catch (error: any) {
-            console.error('OpenList list error:', error.message);
+            logger.error('[OpenListService] List error', { error });
             return [];
         }
     }
@@ -90,23 +91,22 @@ export class OpenListService {
 
         let finalNames = names;
         if (!finalNames || finalNames.length === 0) {
-            console.log(`[OpenListService] No names provided for copy from ${srcDir}, fetching all files...`);
+            logger.info('[OpenListService] No names provided, fetching all files', { srcDir });
             const files = await this.listFiles(srcDir);
             finalNames = files.map(f => f.name);
         }
 
         if (finalNames.length === 0) {
-            console.warn(`[OpenListService] No files found in ${srcDir} to copy`);
+            logger.warn('[OpenListService] No files found to copy', { srcDir });
             return { error: '未找到可复制的文件' };
         }
 
         try {
-            // 在复制前先等待 3 秒并调用一次 listFiles，强制 OpenList 刷新/列出该目录，解决立即复制报 object not found 的问题
-            console.log(`[OpenListService] Waiting 3s and pre-listing directory ${srcDir} with refresh:true to ensure resources are visible...`);
+            logger.debug('[OpenListService] Pre-listing directory with refresh', { srcDir, delayMs: 3000 });
             await new Promise(resolve => setTimeout(resolve, 3000));
-            await this.listFiles(srcDir, true).catch(e => console.warn(`[OpenListService] Pre-list failed for ${srcDir}: ${e.message}`));
+            await this.listFiles(srcDir, true).catch(e => logger.warn('[OpenListService] Pre-list failed', { srcDir, error: e }));
 
-            console.log(`[OpenListService] Copying ${finalNames.length} items from ${srcDir} to ${targetDir}`);
+            logger.info('[OpenListService] Copying items', { count: finalNames.length, srcDir, targetDir });
             const response = await axios.post(`${baseUrl}/api/fs/copy`, {
                 src_dir: srcDir,
                 dst_dir: targetDir,
@@ -120,7 +120,7 @@ export class OpenListService {
 
             if (response.data && response.data.code !== 200) {
                 const errMsg = response.data.message || '未知错误';
-                console.warn(`[OpenListService] Copy failed: ${errMsg}`);
+                logger.warn('[OpenListService] Copy failed', { message: errMsg });
                 return { error: errMsg };
             }
 
@@ -133,7 +133,7 @@ export class OpenListService {
             return { taskId };
         } catch (error: any) {
             const errMsg = error.response?.data?.message || error.message;
-            console.error('OpenList copy error:', errMsg);
+            logger.error('[OpenListService] Copy error', { error: errMsg });
             return { error: errMsg };
         }
     }
@@ -158,7 +158,7 @@ export class OpenListService {
             }
             return [];
         } catch (error: any) {
-            console.error(`OpenList get ${type} tasks error:`, error.message);
+            logger.error('[OpenListService] Get tasks error', { type, error });
             return [];
         }
     }
@@ -180,7 +180,7 @@ export class OpenListService {
 
             return response.data && response.data.code === 200;
         } catch (error: any) {
-            console.error(`OpenList task ${op} error:`, error.message);
+            logger.error('[OpenListService] Task operation error', { op, error });
             return false;
         }
     }
@@ -202,7 +202,7 @@ export class OpenListService {
 
             return response.data;
         } catch (error: any) {
-            console.error(`OpenList batch task ${op} error:`, error.message);
+            logger.error('[OpenListService] Batch task operation error', { op, error });
             return null;
         }
     }
@@ -224,7 +224,7 @@ export class OpenListService {
 
             return response.data;
         } catch (error: any) {
-            console.error(`OpenList full task ${type} error:`, error.message);
+            logger.error('[OpenListService] Full task error', { type, error });
             return null;
         }
     }

@@ -3,6 +3,7 @@ import { getDb } from '../db/index.js';
 import { PansouService } from './pansou.service.js';
 import { CloudStorageService } from './cloud-storage.service.js';
 import { OpenListService } from './openlist.service.js';
+import { logger } from '../logger.js';
 
 const pansouService = PansouService.getInstance();
 const cloudService = CloudStorageService.getInstance();
@@ -48,7 +49,7 @@ export class DiscordService {
         const tokenRow = await db.get('SELECT value FROM settings WHERE key = ?', 'discord_bot_token');
         const token = tokenRow?.value;
         if (!token) {
-            console.log('[DiscordService] No Discord token found in settings, bot will not start');
+            logger.info('[DiscordService] No Discord token found in settings, bot will not start');
             return;
         }
 
@@ -63,7 +64,7 @@ export class DiscordService {
         });
 
         this.client.on('clientReady', () => {
-            console.log(`[DiscordService] Discord Bot logged in as ${this.client?.user?.tag}`);
+            logger.info('[DiscordService] Discord Bot logged in', { tag: this.client?.user?.tag });
         });
 
         this.client.on('messageCreate', async (message) => {
@@ -171,14 +172,14 @@ export class DiscordService {
         });
 
         await this.client.login(token);
-        console.log('[DiscordService] Discord Bot initialized and launched');
+        logger.info('[DiscordService] Discord Bot initialized and launched');
     }
 
     public async notify(message: string) {
         if (!this.client) return;
         const { channelIds } = await this.getDiscordConfig();
         if (channelIds.length === 0) {
-            console.warn('[DiscordService] discord_channel_ids not configured, cannot send notification');
+            logger.warn('[DiscordService] discord_channel_ids not configured, cannot send notification');
             return;
         }
         for (const channelId of channelIds) {
@@ -188,7 +189,7 @@ export class DiscordService {
                     await channel.send(message);
                 }
             } catch (error: any) {
-                console.error('[DiscordService] Notify failed:', error.message);
+                logger.error('[DiscordService] Notify failed', { error });
             }
         }
     }

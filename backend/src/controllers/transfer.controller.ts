@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { CloudStorageService } from '../services/cloud-storage.service.js';
 import { OpenListService } from '../services/openlist.service.js';
 import { getDb } from '../db/index.js';
+import { logger } from '../logger.js';
 
 const cloudService = CloudStorageService.getInstance();
 const openlistService = OpenListService.getInstance();
@@ -48,21 +49,37 @@ export const transferAndSync = async (req: Request, res: Response) => {
             const openlistDefaultPath = settings2['openlist_default_path'];
 
             if (openlistSourcePath) {
-                console.log(`[TransferController] Triggering auto-sync for ${mediaName} from ${openlistSourcePath} to ${openlistDefaultPath || 'default'}, names: ${result.names?.join(', ') || 'all'}`);
+                logger.info('[TransferController] Triggering auto-sync', {
+                    requestId: (req as any).requestId,
+                    mediaName,
+                    source: openlistSourcePath,
+                    target: openlistDefaultPath || 'default',
+                    count: result.names?.length || 0
+                });
                 // 注意：转存成功到 OpenList 能够看到文件可能有延迟，这里异步执行同步
                 void openlistService.copyFile(openlistSourcePath, result.names || [], openlistDefaultPath)
                     .then(async ({ taskId, error }) => {
                         if (taskId) {
-                            console.log(`[TransferController] Auto-sync task submitted: ${taskId}`);
+                            logger.info('[TransferController] Auto-sync task submitted', { requestId: (req as any).requestId, taskId });
                         } else {
-                            console.warn(`[TransferController] Auto-sync task submission failed: ${error || '未知错误'}`);
+                            logger.warn('[TransferController] Auto-sync task submission failed', {
+                                requestId: (req as any).requestId,
+                                error: error || '未知错误'
+                            });
                         }
                     })
                     .catch(err => {
-                        console.error(`[TransferController] Auto-sync unexpected error for ${mediaName}:`, err.message);
+                        logger.error('[TransferController] Auto-sync unexpected error', {
+                            requestId: (req as any).requestId,
+                            mediaName,
+                            error: err
+                        });
                     });
             } else {
-                console.log(`[TransferController] No OpenList source path configured for ${type}, skipping auto-sync`);
+                logger.info('[TransferController] No OpenList source path configured, skipping auto-sync', {
+                    requestId: (req as any).requestId,
+                    type
+                });
             }
 
             res.json({ message: '转存任务已提交', detail: result.message });

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getDb } from '../db/index.js';
+import { logger } from '../logger.js';
 
 export interface SearchResource {
     name: string;
@@ -27,7 +28,7 @@ export class PansouService {
         const pansouUrlSetting = await db.get('SELECT value FROM settings WHERE key = ?', 'pansou_url');
         
         if (!pansouUrlSetting || !pansouUrlSetting.value) {
-            console.error('[PansouService] Pansou API URL not configured in settings');
+            logger.error('[PansouService] Pansou API URL not configured in settings');
             throw new Error('Pansou API URL not configured');
         }
 
@@ -41,7 +42,8 @@ export class PansouService {
         const apiUrl = baseUrl.includes('/api/search') ? baseUrl : `${baseUrl}/api/search`;
 
         try {
-            console.log(`[PansouService] Searching Pansou at: ${apiUrl} with kw: "${keyword}" (refresh: ${refresh})`);
+            const trimmedKeyword = keyword.slice(0, 80);
+            logger.info('[PansouService] Searching Pansou', { apiUrl, keyword: trimmedKeyword, refresh });
             // According to fish2018/pansou documentation, POST /api/search with {"kw": "..."} is preferred.
             // Adding cloud_types to filter for specific cloud providers.
             const response = await axios.post(apiUrl, {
@@ -55,7 +57,7 @@ export class PansouService {
                 timeout: 15000 
             });
 
-            console.log(`[PansouService] Response status: ${response.status}`);
+            logger.debug('[PansouService] Response status', { status: response.status });
             
             let items: SearchResource[] = [];
             const respBody = response.data;
@@ -103,11 +105,11 @@ export class PansouService {
                 }
             }
 
-            console.log(`[PansouService] Successfully parsed ${items.length} items for "${keyword}"`);
+            logger.info('[PansouService] Parsed items', { keyword: trimmedKeyword, count: items.length });
             return items;
         } catch (error: any) {
             const errorDetail = error.response?.data?.message || error.response?.data?.error || error.message;
-            console.error(`[PansouService] Search error for "${keyword}":`, errorDetail);
+            logger.error('[PansouService] Search error', { keyword: keyword.slice(0, 80), error: errorDetail });
             throw new Error(`盘搜 API 查询失败: ${errorDetail}`);
         }
     }

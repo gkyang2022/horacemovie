@@ -3,6 +3,7 @@ import { getDb } from '../db/index.js';
 import { PansouService } from './pansou.service.js';
 import { CloudStorageService } from './cloud-storage.service.js';
 import { OpenListService } from './openlist.service.js';
+import { logger } from '../logger.js';
 
 const pansouService = PansouService.getInstance();
 const cloudService = CloudStorageService.getInstance();
@@ -38,10 +39,10 @@ export class TelegramService {
 
     public async stop() {
         if (this.bot) {
-            console.log('[TelegramService] Stopping Telegram Bot...');
+            logger.info('[TelegramService] Stopping Telegram Bot');
             await this.bot.stop();
             this.bot = null;
-            console.log('[TelegramService] Telegram Bot stopped');
+            logger.info('[TelegramService] Telegram Bot stopped');
         }
     }
 
@@ -50,13 +51,13 @@ export class TelegramService {
         try {
             const token = await db.get('SELECT value FROM settings WHERE key = ?', 'telegram_bot_token');
             if (token && token.value) {
-                console.log('[TelegramService] Initializing Telegram Bot with token from DB');
+                logger.info('[TelegramService] Initializing Telegram Bot with token from DB');
                 this.bot = new Telegraf(token.value);
                 try {
                     const me = await this.bot.telegram.getMe();
                     this.botUsername = me.username ? `@${me.username}` : null;
                 } catch (error: any) {
-                    console.error('[TelegramService] Failed to load bot username:', error.message);
+                    logger.error('[TelegramService] Failed to load bot username', { error });
                 }
 
                 this.bot.on('message', async (ctx, next) => {
@@ -65,7 +66,13 @@ export class TelegramService {
                     const firstName = ctx.from?.first_name || '';
                     const lastName = ctx.from?.last_name || '';
                     const text = 'text' in ctx.message ? ctx.message.text || '' : '';
-                    console.log(`[TelegramService] Incoming message from ${userId} ${username} ${firstName} ${lastName}: ${text}`);
+                    logger.debug('[TelegramService] Incoming message', {
+                        userId,
+                        username,
+                        firstName,
+                        lastName,
+                        length: text.length
+                    });
                     if (text && this.botUsername && text.includes(this.botUsername)) {
                         if (!(await this.isAuthorized(ctx))) {
                             return ctx.reply('无权限使用该命令');
@@ -185,7 +192,8 @@ export class TelegramService {
                         }));
                         return this.safeAnswerInlineQuery(ctx, items, { cache_time: 5, is_personal: true });
                     } catch (e: any) {
-                        console.error(`[TelegramService] Inline search error for "${keyword}":`, e.message);
+                        const trimmedKeyword = keyword.slice(0, 80);
+                        logger.error('[TelegramService] Inline search error', { keyword: trimmedKeyword, error: e });
                         return this.safeAnswerInlineQuery(ctx, [], { cache_time: 0, is_personal: true });
                     }
                 });
@@ -221,18 +229,18 @@ export class TelegramService {
                     if (this.isInlineQueryTooOld(err)) {
                         return;
                     }
-                    console.error('[TelegramService] Bot error:', err);
+                    logger.error('[TelegramService] Bot error', { error: err });
                 });
 
                 (this.bot.launch as any)({
                     handleSignals: false
-                }).catch((err: any) => console.error('[TelegramService] TG Bot launch failed:', err));
-                console.log('[TelegramService] Telegram Bot initialized and launched');
+                }).catch((err: any) => logger.error('[TelegramService] TG Bot launch failed', { error: err }));
+                logger.info('[TelegramService] Telegram Bot initialized and launched');
             } else {
-                console.log('[TelegramService] No Telegram Bot token found in settings, bot will not start');
+                logger.info('[TelegramService] No Telegram Bot token found in settings, bot will not start');
             }
         } catch (error: any) {
-            console.error('[TelegramService] Failed to initialize bot:', error.message);
+            logger.error('[TelegramService] Failed to initialize bot', { error });
         }
     }
 
@@ -244,7 +252,8 @@ export class TelegramService {
 
     private async replySearch(ctx: any, keyword: string) {
         if (!keyword) return ctx.reply('请输入搜索关键词, 例如: /search 肖申克的救赎');
-        console.log(`[TelegramService] Bot received search for: "${keyword}"`);
+        const trimmedKeyword = keyword.slice(0, 80);
+        logger.info('[TelegramService] Bot received search', { keyword: trimmedKeyword });
         const loadingMsg = await ctx.reply(`正在搜索: ${keyword}...`);
         const cleanup = async () => {
             if (loadingMsg?.message_id) {
@@ -255,7 +264,7 @@ export class TelegramService {
         };
         try {
             const results = await pansouService.search(keyword);
-            console.log(`[TelegramService] Bot search for "${keyword}" returned ${results.length} results`);
+            logger.info('[TelegramService] Bot search results', { keyword: trimmedKeyword, count: results.length });
             const ordered = this.pickTopResults(results, results.length);
             if (ordered.length === 0) {
                 await cleanup();
@@ -267,7 +276,7 @@ export class TelegramService {
             await cleanup();
             ctx.reply(msg, this.buildPaginationKeyboard(1, totalPages));
         } catch (e: any) {
-            console.error(`[TelegramService] Bot search error for "${keyword}":`, e.message);
+            logger.error('[TelegramService] Bot search error', { keyword: trimmedKeyword, error: e });
             await cleanup();
             ctx.reply(`搜索出错: ${e.message}`);
         }
@@ -637,15 +646,15 @@ export class TelegramService {
             try {
                 const { chatIds } = await this.getTelegramConfig();
                 if (chatIds.length > 0) {
-                    console.log(`[TelegramService] Sending Telegram notification: ${message.substring(0, 50)}...`);
+                    logger.info('[TelegramService] Sending Telegram notification', { count: chatIds.length, length: message.length });
                     for (const chatId of chatIds) {
-                        this.bot.telegram.sendMessage(chatId, message).catch(err => console.error('[TelegramService] Notify failed:', err));
+                        this.bot.telegram.sendMessage(chatId, message).catch(err => logger.error('[TelegramService] Notify failed', { error: err }));
                     }
                 } else {
-                    console.warn('[TelegramService] telegram_chat_ids not configured, cannot send notification');
+                    logger.warn('[TelegramService] telegram_chat_ids not configured, cannot send notification');
                 }
             } catch (error: any) {
-                console.error('[TelegramService] Failed to fetch chat_id for notification:', error.message);
+                logger.error('[TelegramService] Failed to fetch chat_id for notification', { error });
             }
         }
     }

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { logger } from '../logger.js';
 
 export interface TransferResult {
     success: boolean;
@@ -89,7 +90,7 @@ export class CloudStorageService {
                 }
             } catch (e: any) {
                 if (e.message.includes('提取码') || e.message.includes('失效')) throw e;
-                console.warn(`[CloudStorageService] Failed to fetch Quark stoken from ${domain}: ${e.message}`);
+                logger.warn('[CloudStorageService] Failed to fetch Quark stoken', { domain, error: e });
             }
         }
         throw new Error('获取夸克分享 Token 失败，请检查提取码或 Cookie');
@@ -136,7 +137,7 @@ export class CloudStorageService {
                         break;
                     }
                 } catch (e: any) {
-                    console.warn(`[CloudStorageService] Failed to fetch Quark details from ${domain} (page ${page}): ${e.message}`);
+                    logger.warn('[CloudStorageService] Failed to fetch Quark details', { domain, page, error: e });
                 }
             }
             
@@ -150,7 +151,7 @@ export class CloudStorageService {
         if (recursive) {
             const folders = allFiles.filter(f => f.file_type !== 1);
             for (const folder of folders) {
-                console.log(`[CloudStorageService] Recursing into Quark folder: ${folder.name} (${folder.id})`);
+                logger.debug('[CloudStorageService] Recursing into Quark folder', { name: folder.name, id: folder.id });
                 const subFiles = await this.getQuarkFileList(cookie, shareId, stoken, folder.id, true);
                 allFiles = allFiles.concat(subFiles);
             }
@@ -251,7 +252,7 @@ export class CloudStorageService {
                     }));
                 }
             } catch (e) {
-                console.error(`[CloudStorageService] Failed to get 115 snap:`, e);
+                logger.error('[CloudStorageService] Failed to get 115 snap', { error: e });
             }
         } else if (type === 'quark') {
             const { shareId, passCode, pdirFid } = this.extractQuarkInfo(shareUrl);
@@ -260,10 +261,10 @@ export class CloudStorageService {
             try {
                 const stoken = await this.getQuarkStoken(cookie, shareId, passCode);
                 // 获取文件列表（递归）
-                console.log(`[CloudStorageService] Fetching recursive share list for: ${shareId}`);
+                logger.debug('[CloudStorageService] Fetching recursive share list', { shareId });
                 return await this.getQuarkFileList(cookie, shareId, stoken, pdirFid, true);
             } catch (error: any) {
-                console.error(`[CloudStorageService] Failed to get Quark snap:`, error);
+                logger.error('[CloudStorageService] Failed to get Quark snap', { shareId, error });
             }
         }
         return [];
@@ -275,16 +276,15 @@ export class CloudStorageService {
      */
     async saveTo115(cookie: string, shareUrl: string, targetFolderId: string = '0'): Promise<TransferResult> {
         try {
-            console.log(`[CloudStorageService] Initiating 115 share receive for URL: ${shareUrl}`);
-            
             // 1. 从分享链接中提取 share_code
             // 常见的 115 分享链接格式: https://115.com/s/sw35vv73xw3?password=xxxx
             const shareCodeMatch = shareUrl.match(/\/s\/([a-zA-Z0-9]+)/);
             if (!shareCodeMatch) {
-                console.warn(`[CloudStorageService] Could not extract share_code from 115 URL: ${shareUrl}`);
+                logger.warn('[CloudStorageService] Could not extract share_code from 115 URL');
                 return { success: false, message: '无法从链接中提取分享码', errorType: 'user' };
             }
             const shareCode = shareCodeMatch[1];
+            logger.info('[CloudStorageService] Initiating 115 share receive', { shareCode });
 
             // 2. 提取提取码 (如果有)
             // 修改正则以支持冒号等特殊字符，提取 password= 之后到 & 之前或结尾的内容
@@ -309,10 +309,10 @@ export class CloudStorageService {
                     // 提取顶级文件/目录名
                     const list = snapRes.data.data.list || [];
                     names = list.map((item: any) => item.file_name || item.n);
-                    console.log(`[CloudStorageService] Extracted 115 share names: ${names.join(', ')}`);
+                    logger.debug('[CloudStorageService] Extracted 115 share names', { count: names.length });
                 }
             } catch (e: any) {
-                console.warn(`[CloudStorageService] Failed to fetch 115 share snap: ${e.message}`);
+                logger.warn('[CloudStorageService] Failed to fetch 115 share snap', { shareCode, error: e });
             }
 
             // 5. 调用 115 分享接收接口 (Share Receive)
@@ -332,7 +332,7 @@ export class CloudStorageService {
             );
 
             if (response.data && response.data.state === true) {
-                console.log(`[CloudStorageService] 115 share receive successful for: ${shareCode}`);
+                logger.info('[CloudStorageService] 115 share receive successful', { shareCode });
                 return { success: true, message: '115 分享转存成功', data: response.data, names };
             }
 
@@ -342,7 +342,11 @@ export class CloudStorageService {
              const isUserError = /(分享已取消|分享不存在|链接不存在|访问码|提取码|密码|口令|无效)/.test(errorText) || 
                                 [4100008, 4100010, 4100011, 4100012, 4100013, 4100018, 4100024].includes(errno);
              
-             console.warn(`[CloudStorageService] 115 share receive failed for ${shareCode}. Response:`, JSON.stringify(response.data));
+             logger.warn('[CloudStorageService] 115 share receive failed', {
+                 shareCode,
+                 errno,
+                 message: errorText
+             });
              
              // 1. 如果是明确的用户错误（如链接失效、密码错误、已转存等），直接返回失败，不触发后续 OpenList 逻辑
              if (isUserError) {
@@ -356,7 +360,7 @@ export class CloudStorageService {
 
             return { success: false, message: `115 转存失败: ${errorText || '操作失败'}`, errorType: 'system' };
         } catch (error: any) {
-            console.error(`[CloudStorageService] 115 share receive exception for ${shareUrl}:`, error.message);
+            logger.error('[CloudStorageService] 115 share receive exception', { error });
             return { success: false, message: `115 转存异常: ${error.message}`, errorType: 'system' };
         }
     }
@@ -376,7 +380,7 @@ export class CloudStorageService {
     ): Promise<TransferResult> {
         try {
             const { shareId, passCode, pdirFid } = this.extractQuarkInfo(shareUrl);
-            console.log(`[CloudStorageService] Initiating Quark transfer for shareId: ${shareId}, pdirFid: ${pdirFid}`);
+            logger.info('[CloudStorageService] Initiating Quark transfer', { shareId, pdirFid });
 
             if (!shareId) {
                 return { success: false, message: '解析夸克分享 ID 失败' };
@@ -472,14 +476,14 @@ export class CloudStorageService {
 
                 for (const domain of domains) {
                     try {
-                        console.log(`[CloudStorageService] Executing Quark save via ${domain}`);
+                        logger.debug('[CloudStorageService] Executing Quark save', { domain });
                         const response = await axios.post(`${domain}/1/clouddrive/share/sharepage/save?${commonParams}`, saveParams, {
                             headers: this.getQuarkHeaders(cookie, shareId),
                             timeout: 30000
                         });
 
                         if (response.data && (response.data.status === 200 || response.data.code === 0)) {
-                            console.log(`[CloudStorageService] Quark transfer successful for shareId: ${shareId}, names: ${names.join(', ')}`);
+                            logger.info('[CloudStorageService] Quark transfer successful', { shareId, count: names.length });
                             return { success: true, message: '夸克转存成功', names };
                         }
                         
@@ -491,7 +495,7 @@ export class CloudStorageService {
                         }
                         
                         if (status === 403 || errorMsg.includes('违规') || errorMsg.includes('封禁') || errorMsg.includes('黑名单')) {
-                            console.warn(`[CloudStorageService] Quark save 403 error body:`, JSON.stringify(response.data));
+                            logger.warn('[CloudStorageService] Quark save 403 response', { shareId, status, message: errorMsg });
                             if (errorMsg.includes('已存在') || errorMsg.includes('重复')) {
                                 return { success: true, message: '资源已在网盘中', names };
                             }
@@ -501,7 +505,12 @@ export class CloudStorageService {
                         lastError = errorMsg;
                     } catch (e: any) {
                         const errorData = e.response?.data;
-                        console.warn(`[CloudStorageService] Quark save failed via ${domain}: ${e.message}`, errorData ? `Error Body: ${JSON.stringify(errorData)}` : '');
+                        logger.warn('[CloudStorageService] Quark save failed', {
+                            domain,
+                            message: e.message,
+                            status: e.response?.status,
+                            errorMessage: errorData?.message
+                        });
                         
                         lastError = e.message;
                         if (e.response?.status === 401) {
@@ -583,7 +592,7 @@ export class CloudStorageService {
 
             return { success: true, message: '夸克转存成功', names: allNames };
         } catch (error: any) {
-            console.error(`[CloudStorageService] Quark transfer exception for ${shareUrl}:`, error.message);
+            logger.error('[CloudStorageService] Quark transfer exception', { error });
             return { success: false, message: `夸克转存异常: ${error.message}`, errorType: 'system' };
         }
     }

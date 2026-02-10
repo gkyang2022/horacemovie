@@ -17,6 +17,8 @@ export class TelegramService {
     private searchCacheTtlMs = 10 * 60 * 1000;
     private pendingTrackRequests = new Map<string, { item: any; createdAt: number }>();
     private trackRequestTtlMs = 10 * 60 * 1000;
+    private pendingTransferRequests = new Map<string, { url: string; createdAt: number }>();
+    private transferRequestTtlMs = 10 * 60 * 1000;
 
     private constructor() {
     }
@@ -81,6 +83,24 @@ export class TelegramService {
                         await this.handleSelection(ctx, selection);
                         return;
                     }
+                    const link = this.extractCloudUrl(text);
+                    if (link) {
+                        if (!(await this.isAuthorized(ctx))) {
+                            return ctx.reply('无权限使用该命令');
+                        }
+                        this.cacheTransferRequest(ctx, link);
+                        await ctx.reply('检测到网盘链接，是否转存？', {
+                            reply_markup: {
+                                inline_keyboard: [
+                                    [
+                                        { text: '是', callback_data: 'transfer_yes' },
+                                        { text: '否', callback_data: 'transfer_no' }
+                                    ]
+                                ]
+                            }
+                        });
+                        return;
+                    }
                     return next();
                 });
 
@@ -107,6 +127,22 @@ export class TelegramService {
                         return;
                     }
                     await this.handleSearchPage(ctx, 1);
+                });
+
+                this.bot.action('transfer_yes', async (ctx) => {
+                    if (!(await this.isAuthorized(ctx))) {
+                        await ctx.answerCbQuery('无权限使用该命令');
+                        return;
+                    }
+                    await this.handleTransferDecision(ctx, true);
+                });
+
+                this.bot.action('transfer_no', async (ctx) => {
+                    if (!(await this.isAuthorized(ctx))) {
+                        await ctx.answerCbQuery('无权限使用该命令');
+                        return;
+                    }
+                    await this.handleTransferDecision(ctx, false);
                 });
 
                 this.bot.action('track_yes', async (ctx) => {
@@ -356,6 +392,35 @@ export class TelegramService {
         await ctx.answerCbQuery();
     }
 
+    private extractCloudUrl(text: string) {
+        if (!text) return '';
+        const urls = text.match(/https?:\/\/\S+/g) || [];
+        const match = urls.find(url => url.includes('115cdn.com') || url.includes('115.com') || url.includes('anxia.com') || url.includes('quark.cn'));
+        return match || '';
+    }
+
+    private async handleTransferDecision(ctx: any, accepted: boolean) {
+        try {
+            await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
+        } catch {}
+        if (!accepted) {
+            this.clearTransferRequest(ctx);
+            try {
+                await ctx.deleteMessage();
+            } catch {}
+            await ctx.answerCbQuery('已取消');
+            return;
+        }
+        const url = this.getTransferRequest(ctx);
+        if (!url) {
+            await ctx.answerCbQuery('请求已过期');
+            return;
+        }
+        this.clearTransferRequest(ctx);
+        await this.transferByResult(ctx, { url });
+        await ctx.answerCbQuery();
+    }
+
     private resolveResourceType(item: any): '115' | 'quark' | '' {
         const type = (item?.type || '').toLowerCase();
         if (type === '115' || type === 'quark') return type as '115' | 'quark';
@@ -444,6 +509,31 @@ export class TelegramService {
         }
         await ctx.reply(message);
         return;
+    }
+
+    private getTransferKey(ctx: any) {
+        return this.getSearchKey(ctx);
+    }
+
+    private cacheTransferRequest(ctx: any, url: string) {
+        const key = this.getTransferKey(ctx);
+        this.pendingTransferRequests.set(key, { url, createdAt: Date.now() });
+    }
+
+    private getTransferRequest(ctx: any) {
+        const key = this.getTransferKey(ctx);
+        const record = this.pendingTransferRequests.get(key);
+        if (!record) return null;
+        if (Date.now() - record.createdAt > this.transferRequestTtlMs) {
+            this.pendingTransferRequests.delete(key);
+            return null;
+        }
+        return record.url;
+    }
+
+    private clearTransferRequest(ctx: any) {
+        const key = this.getTransferKey(ctx);
+        this.pendingTransferRequests.delete(key);
     }
 
     private getTrackKey(ctx: any) {

@@ -18,6 +18,8 @@ export class DiscordService {
     private searchCacheTtlMs = 10 * 60 * 1000;
     private pendingTrackRequests = new Map<string, { item: any; createdAt: number }>();
     private trackRequestTtlMs = 10 * 60 * 1000;
+    private pendingTransferRequests = new Map<string, { url: string; createdAt: number }>();
+    private transferRequestTtlMs = 10 * 60 * 1000;
 
     private constructor() {}
 
@@ -69,7 +71,8 @@ export class DiscordService {
 
             const content = message.content.trim();
             const mentionInfo = this.extractMentionKeyword(content, this.client?.user?.id);
-            const isCommand = this.isCommandMessage(content) || mentionInfo.isMention;
+            const link = this.extractCloudUrl(content);
+            const isCommand = this.isCommandMessage(content) || mentionInfo.isMention || Boolean(link);
             const isDirectMessage = message.channel?.type === ChannelType.DM;
             const helpText = 'HoraceMovie Bot 命令:\n!help - 显示本消息\n!search <关键词> - 搜索网盘资源\n直接回复序号 - 转存资源';
             const cachedSelection = this.getCachedResults(message.channelId, message.author.id);
@@ -111,7 +114,18 @@ export class DiscordService {
                 return;
             }
 
+            if (link) {
+                this.cacheTransferRequest(message.channelId, message.author.id, link);
+                await message.reply({ content: '检测到网盘链接，是否转存？', components: this.buildTransferComponents(message.author.id) });
+                return;
+            }
+
             if (this.isTrackReply(content)) {
+                const pendingTransfer = this.getTransferRequest(message.channelId, message.author.id);
+                if (pendingTransfer) {
+                    await this.handleTransferReply(message, content);
+                    return;
+                }
                 const pendingTrack = this.getTrackRequest(message.channelId, message.author.id);
                 if (pendingTrack) {
                     await this.handleTrackReply(message, content);
@@ -145,6 +159,10 @@ export class DiscordService {
             }
             if (action === 'search_prev' || action === 'search_next') {
                 await this.handleSearchPage(interaction, action === 'search_next' ? 1 : -1);
+                return;
+            }
+            if (action === 'transfer_yes' || action === 'transfer_no') {
+                await this.handleTransferButton(interaction, action === 'transfer_yes');
                 return;
             }
             if (action === 'track_yes' || action === 'track_no') {
@@ -248,6 +266,13 @@ export class DiscordService {
         return { isMention: true, keyword };
     }
 
+    private extractCloudUrl(text: string) {
+        if (!text) return '';
+        const urls = text.match(/https?:\/\/\S+/g) || [];
+        const match = urls.find(url => url.includes('115.com') || url.includes('anxia.com') || url.includes('quark.cn'));
+        return match || '';
+    }
+
     private buildSearchComponents(page: number, totalPages: number, userId: string) {
         if (totalPages <= 1) return [];
         const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -269,6 +294,14 @@ export class DiscordService {
         const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
             new ButtonBuilder().setCustomId(`track_yes:${userId}`).setLabel('是').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId(`track_no:${userId}`).setLabel('否').setStyle(ButtonStyle.Secondary)
+        );
+        return [row];
+    }
+
+    private buildTransferComponents(userId: string) {
+        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder().setCustomId(`transfer_yes:${userId}`).setLabel('是').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`transfer_no:${userId}`).setLabel('否').setStyle(ButtonStyle.Secondary)
         );
         return [row];
     }
@@ -413,6 +446,27 @@ export class DiscordService {
         await message.reply(replyMsg);
     }
 
+    private cacheTransferRequest(channelId: string, userId: string, url: string) {
+        const key = this.getSearchKey(channelId, userId);
+        this.pendingTransferRequests.set(key, { url, createdAt: Date.now() });
+    }
+
+    private getTransferRequest(channelId: string, userId: string) {
+        const key = this.getSearchKey(channelId, userId);
+        const record = this.pendingTransferRequests.get(key);
+        if (!record) return null;
+        if (Date.now() - record.createdAt > this.transferRequestTtlMs) {
+            this.pendingTransferRequests.delete(key);
+            return null;
+        }
+        return record.url;
+    }
+
+    private clearTransferRequest(channelId: string, userId: string) {
+        const key = this.getSearchKey(channelId, userId);
+        this.pendingTransferRequests.delete(key);
+    }
+
     private cacheTrackRequest(channelId: string, userId: string, item: any) {
         const key = this.getSearchKey(channelId, userId);
         this.pendingTrackRequests.set(key, { item, createdAt: Date.now() });
@@ -432,6 +486,43 @@ export class DiscordService {
     private clearTrackRequest(channelId: string, userId: string) {
         const key = this.getSearchKey(channelId, userId);
         this.pendingTrackRequests.delete(key);
+    }
+
+    private async handleTransferButton(interaction: any, accepted: boolean) {
+        const url = this.getTransferRequest(interaction.channelId, interaction.user.id);
+        if (!url) {
+            await interaction.reply({ content: '转存请求已过期', ephemeral: true });
+            return;
+        }
+        this.clearTransferRequest(interaction.channelId, interaction.user.id);
+        if (!accepted) {
+            try {
+                await interaction.message.delete();
+            } catch {}
+            return;
+        }
+        await interaction.update({ content: `${interaction.message.content}\n开始转存...`, components: [] });
+        await this.transferByResult(
+            {
+                channelId: interaction.channelId,
+                author: interaction.user,
+                reply: (payload: any) => interaction.followUp(payload)
+            },
+            { url }
+        );
+    }
+
+    private async handleTransferReply(message: any, content: string) {
+        if (!this.isTrackReply(content)) return;
+        const accepted = ['是', 'yes', 'y'].includes(content.toLowerCase());
+        const url = this.getTransferRequest(message.channelId, message.author.id);
+        if (!url) return;
+        this.clearTransferRequest(message.channelId, message.author.id);
+        if (!accepted) {
+            await message.reply('已取消');
+            return;
+        }
+        await this.transferByResult(message, { url });
     }
 
     private async handleTrackReply(message: any, content: string) {

@@ -35,13 +35,13 @@ export class TrackerService {
         if (this.scheduleTask) {
             this.scheduleTask.stop();
         }
-        // 每分钟检查一次任务，而不是每小时
-        this.scheduleTask = cron.schedule('* * * * *', () => {
+        // 每10分钟检查一次任务
+        this.scheduleTask = cron.schedule('*/10 * * * *', () => {
             void this.checkAllTasks().catch((err: any) => {
                 logger.error('[TrackerService] Tracker scheduler tick failed', { error: err });
             });
         });
-        logger.info('[TrackerService] Tracker scheduler started (running every minute)');
+        logger.info('[TrackerService] Tracker scheduler started (running every 10 minutes)');
     }
 
     async checkAllTasks() {

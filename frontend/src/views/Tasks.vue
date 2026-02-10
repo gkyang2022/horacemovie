@@ -234,7 +234,6 @@
           <div style="display: flex; gap: 10px; align-items: center">
             <el-input-number v-model="trackerForm.interval_value" :min="1" />
             <el-select v-model="trackerForm.interval_unit" style="width: 100px">
-              <el-option label="分钟" value="minute" />
               <el-option label="小时" value="hour" />
               <el-option label="天" value="day" />
               <el-option label="月" value="month" />

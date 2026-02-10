@@ -60,7 +60,10 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Search as SearchIcon } from '@element-plus/icons-vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { searchDouban, type DoubanMedia } from '../api/douban';
+import { saveToCloud } from '../api/system';
+import request from '../api/request';
 
 const router = useRouter();
 const query = ref('');
@@ -107,12 +110,81 @@ const saveHistory = (keyword: string) => {
   localStorage.setItem(getHistoryKey(), JSON.stringify(searchHistory.value));
 };
 
+const extractCloudUrl = (text: string) => {
+  const urls = text.match(/https?:\/\/\S+/g) || [];
+  return urls.find(url => url.includes('115cdn.com') || url.includes('115.com') || url.includes('anxia.com') || url.includes('quark.cn')) || '';
+};
+
+const resolveCloudType = (url: string) => {
+  if (url.includes('115cdn.com') || url.includes('115.com') || url.includes('anxia.com')) return '115';
+  if (url.includes('quark.cn')) return 'quark';
+  return '';
+};
+
+const buildTrackerName = (shareUrl: string, panType: string) => {
+  const shareCodeMatch = shareUrl.match(/\/s\/([a-zA-Z0-9]+)/);
+  const shareIdMatch = shareUrl.match(/[?&]share_id=([a-zA-Z0-9]+)/);
+  const shareCodeParamMatch = shareUrl.match(/[?&]share_code=([a-zA-Z0-9]+)/);
+  const shareCode = shareCodeMatch?.[1] || shareIdMatch?.[1] || shareCodeParamMatch?.[1] || 'unknown';
+  return `${panType}-${shareCode}`;
+};
+
 const handleSearch = async () => {
-  if (!query.value.trim()) return;
-  saveHistory(query.value);
+  const keyword = query.value.trim();
+  if (!keyword) return;
+  const link = extractCloudUrl(keyword);
+  const type = link ? resolveCloudType(link) : '';
+  if (link && type) {
+    try {
+      await ElMessageBox.confirm('检测到网盘链接，是否转存？', '转存确认', {
+        confirmButtonText: '是',
+        cancelButtonText: '否',
+        type: 'info'
+      });
+    } catch {
+      return;
+    }
+    loading.value = true;
+    try {
+      const res = await saveToCloud({
+        shareUrl: link,
+        type,
+        mediaName: keyword
+      });
+      ElMessage.success(res.message || '转存任务已提交');
+      if (type === 'quark') {
+        try {
+          await ElMessageBox.confirm(
+            '转存成功！该资源是夸克链接，是否需要开启追剧（资源追踪）功能？',
+            '追剧提醒',
+            {
+              confirmButtonText: '开启追剧',
+              cancelButtonText: '暂不需要',
+              type: 'info'
+            }
+          );
+        } catch {
+          return;
+        }
+        const taskName = buildTrackerName(link, 'quark');
+        await request.post('/tracker/tasks', {
+          name: taskName,
+          share_url: link,
+          pan_type: 'quark',
+          interval_value: 6,
+          interval_unit: 'hour'
+        });
+        ElMessage.success('追剧任务创建成功');
+      }
+    } finally {
+      loading.value = false;
+    }
+    return;
+  }
+  saveHistory(keyword);
   loading.value = true;
   try {
-    list.value = await searchDouban(query.value);
+    list.value = await searchDouban(keyword);
   } finally {
     loading.value = false;
   }

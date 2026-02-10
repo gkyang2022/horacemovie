@@ -538,6 +538,21 @@ export class DiscordService {
         await this.createTrackerTask(message, item);
     }
 
+    private extractShareCode(shareUrl: string) {
+        const match = shareUrl.match(/\/s\/([a-zA-Z0-9]+)/);
+        if (match) return match[1];
+        const shareIdMatch = shareUrl.match(/[?&]share_id=([a-zA-Z0-9]+)/);
+        if (shareIdMatch) return shareIdMatch[1];
+        const shareCodeMatch = shareUrl.match(/[?&]share_code=([a-zA-Z0-9]+)/);
+        if (shareCodeMatch) return shareCodeMatch[1];
+        return '';
+    }
+
+    private buildTrackerName(shareUrl: string, panType: 'quark' | '115') {
+        const shareCode = this.extractShareCode(shareUrl);
+        return `${panType}-${shareCode || 'unknown'}`;
+    }
+
     private async createTrackerTask(message: any, item: any) {
         const result = await this.createTrackerTaskByItem(item);
         await message.reply(result.message);
@@ -572,7 +587,7 @@ export class DiscordService {
         }
         const lastFileIds = JSON.stringify(currentFiles.map((f: any) => f.id));
         const now = new Date().toLocaleString('sv-SE');
-        const name = this.truncateTitle(item?.name || '未命名资源', 80);
+        const name = this.buildTrackerName(shareUrl, 'quark');
         await db.run(
             'INSERT INTO tracker_tasks (name, keyword, share_url, target_folder_id, pan_type, interval_value, interval_unit, last_file_ids, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
             name, '', shareUrl, targetFolderId, 'quark', 6, 'hour', lastFileIds, now

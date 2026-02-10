@@ -263,25 +263,13 @@ const confirmCreateTracker = async () => {
   const row = currentResourceForTracker.value;
   const panType = getCloudTypeFromResource(row);
   
-  // 生成新的任务名称格式: pansou名称-网盘名称-sharecode-receivecode
-  let taskName = row.name;
-  if (panType === 'quark') {
-    const url = row.url || '';
-    // 匹配 sharecode: /s/xxx
-    const shareCodeMatch = url.match(/\/s\/([a-zA-Z0-9]+)/);
-    // 匹配 receivecode (pwd): pwd=xxx
-    const pwdMatch = url.match(/[?&]pwd=([a-zA-Z0-9]+)/);
-    
-    const shareCode = shareCodeMatch ? shareCodeMatch[1] : '';
-    const pwd = pwdMatch ? pwdMatch[1] : '';
-    
-    if (shareCode) {
-      taskName = `${row.name}-quark-${shareCode}`;
-      if (pwd) {
-        taskName += `-${pwd}`;
-      }
-    }
-  }
+  const url = row.url || '';
+  const shareCodeMatch = url.match(/\/s\/([a-zA-Z0-9]+)/);
+  const shareIdMatch = url.match(/[?&]share_id=([a-zA-Z0-9]+)/);
+  const shareCodeParamMatch = url.match(/[?&]share_code=([a-zA-Z0-9]+)/);
+  const shareCode = shareCodeMatch?.[1] || shareIdMatch?.[1] || shareCodeParamMatch?.[1] || 'unknown';
+  const resolvedType = panType || 'quark';
+  const taskName = `${resolvedType}-${shareCode}`;
   
   trackerSubmitting.value = true;
   try {

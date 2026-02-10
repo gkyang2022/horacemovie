@@ -1,51 +1,92 @@
 # HoraceMovie
 
-一个简洁、强大的个人影视资源管理与追踪系统。
+一个用于影视资源浏览、搜索与追踪的个人系统，覆盖资源检索、网盘转存、任务追踪与消息通知等核心流程。
 
-## 🚀 功能特性
+## 功能概览
 
-- **豆瓣联动**：支持热门电影/电视剧浏览，实时搜索豆瓣影视信息。
-- **资源搜索**：集成 Pansou API，一键搜索全网网盘资源（115、夸克、阿里、百度等）。
-- **智能追踪**：支持 Telegram Bot 订阅追踪，新资源上线自动提醒。
-- **云端转存**：支持将搜索到的资源一键转存至个人云盘（开发中）。
-- **极简 UI**：基于 Vue 3 + Element Plus 构建，支持响应式布局。
+- 资源浏览：通过 DouBan 浏览影视资源列表和详情。
+- 资源搜索：通过 PanSou 网盘搜索接口，支持多网盘资源聚合。
+- 网盘转存：将影视资源一键转存到个人网盘（目前支持 115 和 Quark）。
+- 任务追踪：支持对资源进行 Cron 追踪，新增内容自动转存并通知。
+- 通讯工具：可接入 Telegram Bot 进行搜索、转存、推送与追踪。
+- 任务管理：提供 OpenList 跨存储同步（如网盘到本地、NAS）任务与资源追踪（如追剧）任务管理。
 
-## 🛠️ 技术栈
+## 快速开始
 
-- **Frontend**: Vue 3, TypeScript, Vite, Element Plus, Pinia
-- **Backend**: Node.js (Express), TypeScript, SQLite (Better-SQLite3)
-- **Tools**: Docker, Telegram Bot API, Frodo (Douban API)
+推荐使用 Docker Compose 进行一键部署。
 
-## 📦 快速开始
+```yaml
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: horacemovie-backend
+    ports:
+      - "8008:8008"
+    volumes:
+      - ./backend/data:/app/data
+    environment:
+      NODE_ENV: production
+      PORT: "8008"
+      DB_PATH: /app/data/horacemovie.db
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8008/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
 
-### 1. 克隆项目
-```bash
-git clone https://github.com/your-username/horacemovie.git
-cd horacemovie
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: horacemovie-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
 ```
 
-### 2. 后端配置
-进入 `backend` 目录：
-1. `npm install` 安装依赖。
-2. 复制 `.env.example` 为 `.env`（如果存在）并配置环境变量。
-3. `npm run dev` 启动开发服务器。
+部署完成后：
+- **前后端地址**：`http://localhost:8080`、`http://localhost:8008`
+- **admin初始密码**：`docker logs -f horacemovie-backend | grep "Password"`
 
-### 3. 前端配置
-进入 `frontend` 目录：
-1. `npm install` 安装依赖。
-2. `npm run dev` 启动前端。
+## 流程示例
 
-### 4. Docker 部署
-使用根目录的 `docker-compose.yml` 一键启动：
-```bash
-docker-compose up -d
-```
+1. **基础配置**：
+   - 更改用户名和密码：首次登录系统后，进入 **系统设置** 页面，更改默认用户名和密码。
+   - 配置 **网盘设置**：填写 115 或 夸克的 Cookie，以及默认转存目录。
+   - (可选) 配置 **OpenList 设置**：填写 OpenList 地址、用户名、密码和同步路径，用于后续同步。
+   - (可选) 配置 **Telegram**：配置 Bot Token、可用的 Chat IDs（群聊白名单） 与 User IDs（用户白名单）。
 
-## 📝 配置说明
+2. **资源检索与转存**：
+   - 在 **首页** 、 **搜索** 或 **排行榜** 页面查找影视资源。
+   - 选中合适的资源，点击 **一键转存**。系统会自动将资源保存到你配置的网盘中。
 
-- **豆瓣代理**：默认使用 `cmliussss` 源以解决海报 404 问题。
-- **Pansou API**：请在系统设置中配置有效的 Pansou 接口地址。
+3. **自动化同步（可选）**：
+   > 如果配置了 **OpenList 同步**，会自动将资源添加到 OpenList 同步任务队列中。
+   - 在 **任务管理** 中查看同步进度。
+   - 转存成功后，系统可配合 OpenList 自动触发同步任务，将资源拉取到你的本地存储。
 
-## ⚖️ 许可证
+4. **持续追踪（可选）**：
+   - 在 **追踪管理** 中查看追踪进度。
+   - 系统将定期检查更新，发现新资源后自动完成搜索与转存流程。
+
+5. **通讯工具集成（可选）**：
+   > 如果配置了 **Telegram Bot** 等机器人，会自动通知转存、同步结果。
+   - 在 Telegram Bot 进行资源搜索、转存。
+   - 转存、同步和追踪等任务完成后会通过机器人进行通知
+
+## 配置说明
+
+- 搜索接口：在系统设置中填写可用的 Pansou 搜索地址（如 localhost:8888）。
+- 网盘设置：配置网盘 Cookie、默认转存目录以及 OpenList 对应的挂载路径。
+- Telegram 配置：配置 Bot Token、可用的 Chat IDs（群聊白名单） 与 User IDs（用户白名单）。
+- OpenList 配置：配置服务地址、账号信息与默认同步路径。
+
+## 许可证
 
 MIT License

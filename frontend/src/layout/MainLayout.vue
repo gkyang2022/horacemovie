@@ -35,6 +35,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowDown, Moon, Sunny } from '@element-plus/icons-vue';
+import { logout } from '../api/auth';
 
 const router = useRouter();
 const user = ref<{ username: string; role: string } | null>(null);
@@ -48,8 +49,11 @@ onMounted(() => {
   isDark.value = document.documentElement.classList.contains('dark');
 });
 
-const handleCommand = (command: string) => {
+const handleCommand = async (command: string) => {
   if (command === 'logout') {
+    try {
+      await logout();
+    } catch {}
     localStorage.removeItem('user');
     router.push('/login');
   }

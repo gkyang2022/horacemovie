@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { randomUUID } from 'node:crypto';
 import 'express-async-errors';
-import { closeDb, initDb } from './db/index.js';
+import { closeDb, initDb, getDb, getCachedAuthUser, setCachedAuthUser } from './db/index.js';
 import doubanRoutes from './routes/douban.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import searchRoutes from './routes/search.routes.js';
@@ -41,6 +41,54 @@ const morganFormat = isDev
     : '[:date[iso]] :method :url :status :response-time ms - :res[content-length] reqId=:requestId';
 app.use(morgan(morganFormat));
 app.use(express.json());
+
+const parseExpiresAt = (value: string | null | undefined) => {
+    if (!value) return null;
+    const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+    const date = new Date(normalized);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.getTime();
+};
+
+app.use(async (req, res, next) => {
+    if (req.method === 'OPTIONS') {
+        return next();
+    }
+    const path = req.path;
+    if (path === '/api/health' || path === '/api/auth/login') {
+        return next();
+    }
+    const authHeader = typeof req.headers.authorization === 'string' ? req.headers.authorization : '';
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
+    const headerToken = typeof req.headers['x-auth-token'] === 'string' ? req.headers['x-auth-token'] : '';
+    const token = bearerToken || headerToken;
+    if (!token) {
+        return res.status(401).json({ error: '未登录' });
+    }
+    const cachedUser = getCachedAuthUser(token);
+    if (cachedUser) {
+        (req as any).user = cachedUser;
+        return next();
+    }
+    try {
+        const db = getDb();
+        const now = new Date().toLocaleString('sv-SE');
+        const user = await db.get(
+            'SELECT id, username, role, token_expires_at FROM users WHERE api_token = ? AND (token_expires_at IS NULL OR token_expires_at > ?)',
+            token,
+            now
+        );
+        if (!user) {
+            return res.status(401).json({ error: '登录已过期' });
+        }
+        const expiresAtMs = parseExpiresAt(user.token_expires_at);
+        setCachedAuthUser(token, { id: user.id, username: user.username, role: user.role }, expiresAtMs);
+        (req as any).user = user;
+        next();
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || '鉴权失败' });
+    }
+});
 
 // Routes
 app.use('/api/douban', doubanRoutes);

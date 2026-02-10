@@ -16,6 +16,30 @@ if (!fs.existsSync(dbDir)) {
 }
 
 let db: Database | null = null;
+const authCacheTtlMs = 60 * 1000;
+const authCache = new Map<string, { user: { id: number; username: string; role: string }; expiresAtMs: number; cacheUntilMs: number }>();
+
+export const getCachedAuthUser = (token: string) => {
+    const cached = authCache.get(token);
+    if (!cached) return null;
+    const now = Date.now();
+    if (now > cached.cacheUntilMs || now > cached.expiresAtMs) {
+        authCache.delete(token);
+        return null;
+    }
+    return cached.user;
+};
+
+export const setCachedAuthUser = (token: string, user: { id: number; username: string; role: string }, expiresAtMs: number | null) => {
+    const now = Date.now();
+    const effectiveExpiresAtMs = typeof expiresAtMs === 'number' ? expiresAtMs : now + authCacheTtlMs;
+    const cacheUntilMs = Math.min(now + authCacheTtlMs, effectiveExpiresAtMs);
+    authCache.set(token, { user, expiresAtMs: effectiveExpiresAtMs, cacheUntilMs });
+};
+
+export const revokeAuthToken = (token: string) => {
+    authCache.delete(token);
+};
 
 export async function initDb() {
     db = await open({
@@ -62,6 +86,8 @@ export async function initDb() {
     // Add missing columns if they don't exist (for existing databases)
     const columns = await db.all('PRAGMA table_info(tracker_tasks)');
     const columnNames = columns.map(c => c.name);
+    const userColumns = await db.all('PRAGMA table_info(users)');
+    const userColumnNames = userColumns.map(c => c.name);
 
     // Remove redundant target_folder_name if exists
     if (columnNames.includes('target_folder_name')) {
@@ -104,6 +130,12 @@ export async function initDb() {
     }
     if (!columnNames.includes('last_run_message')) {
         await db.exec('ALTER TABLE tracker_tasks ADD COLUMN last_run_message TEXT');
+    }
+    if (!userColumnNames.includes('api_token')) {
+        await db.exec('ALTER TABLE users ADD COLUMN api_token TEXT');
+    }
+    if (!userColumnNames.includes('token_expires_at')) {
+        await db.exec('ALTER TABLE users ADD COLUMN token_expires_at DATETIME');
     }
 
     // Fix existing UTC times to local time (UTC+8) - One time migration

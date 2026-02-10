@@ -6,13 +6,69 @@ const service = axios.create({
   timeout: 10000
 });
 
+let refreshPromise: Promise<any> | null = null;
+
+const readStoredUser = () => {
+  const userStr = localStorage.getItem('user');
+  if (!userStr) return null;
+  try {
+    return JSON.parse(userStr);
+  } catch {
+    return null;
+  }
+};
+
+const parseExpiresAt = (value: string) => {
+  if (!value) return null;
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.getTime();
+};
+
+const storeUser = (user: any) => {
+  localStorage.setItem('user', JSON.stringify(user));
+};
+
+const refreshTokenIfNeeded = async () => {
+  const user = readStoredUser();
+  if (!user || !user.token || !user.token_expires_at) return;
+  const expiresAt = parseExpiresAt(user.token_expires_at);
+  if (!expiresAt) return;
+  const remaining = expiresAt - Date.now();
+  if (remaining > 24 * 60 * 60 * 1000) return;
+  if (!refreshPromise) {
+    refreshPromise = service.post('/auth/refresh')
+      .then((data) => {
+        storeUser({ ...user, ...data });
+        return data;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  await refreshPromise;
+};
+
 service.interceptors.request.use(
-  (config) => {
+  async (config) => {
+    const requestUrl = config.url || '';
+    if (!requestUrl.includes('/auth/login') && !requestUrl.includes('/auth/refresh')) {
+      try {
+        await refreshTokenIfNeeded();
+      } catch {
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+    }
     const userStr = localStorage.getItem('user');
     if (userStr) {
       const user = JSON.parse(userStr);
       if (user.id) {
         config.headers['X-User-Id'] = user.id;
+      }
+      if (user.token) {
+        config.headers['Authorization'] = `Bearer ${user.token}`;
       }
     }
     if (import.meta.env.DEV) {
@@ -34,6 +90,12 @@ service.interceptors.response.use(
     return response.data;
   },
   (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('user');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
     const errorMsg = error.response?.data?.error || error.message || '网络错误';
     const requestUrl = error.config?.url || '';
     let displayMsg = errorMsg;

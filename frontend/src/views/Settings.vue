@@ -59,10 +59,20 @@
           <el-input v-model="form.telegram_bot_token" placeholder="123456789:ABCDEF..." type="password" show-password />
         </el-form-item>
         <el-form-item label="Chat IDs">
-          <el-input v-model="form.telegram_chat_ids" placeholder="多个用逗号/空格/换行分隔，留空则广播到所有配置的 chatId" />
+          <el-input v-model="form.telegram_chat_ids" placeholder="多个用逗号/空格/换行分隔，留空则无法接收通知消息" />
         </el-form-item>
         <el-form-item label="User IDs">
           <el-input v-model="form.telegram_user_ids" placeholder="多个用逗号/空格/换行分隔，留空则允许所有用户使用命令" />
+        </el-form-item>
+        <el-divider content-position="left">Discord Bot 配置</el-divider>
+        <el-form-item label="Bot Token">
+          <el-input v-model="form.discord_bot_token" placeholder="Discord Bot Token" type="password" show-password />
+        </el-form-item>
+        <el-form-item label="Channel IDs">
+          <el-input v-model="form.discord_channel_ids" placeholder="多个用逗号/空格/换行分隔，留空则无法接收通知消息" />
+        </el-form-item>
+        <el-form-item label="User IDs">
+          <el-input v-model="form.discord_user_ids" placeholder="多个用逗号/空格/换行分隔，留空则允许所有用户使用命令" />
         </el-form-item>
         <el-divider content-position="left">用户管理</el-divider>
         <el-table :data="users" style="margin-bottom: 20px">
@@ -157,7 +167,10 @@ const form = reactive({
   openlist_path_quark: '',
   telegram_bot_token: '',
   telegram_chat_ids: '',
-  telegram_user_ids: ''
+  telegram_user_ids: '',
+  discord_bot_token: '',
+  discord_channel_ids: '',
+  discord_user_ids: ''
 });
 
 const fetchData = async () => {
@@ -205,6 +218,9 @@ const handleSave = async () => {
       telegram_bot_token: form.telegram_bot_token,
       telegram_chat_ids: form.telegram_chat_ids,
       telegram_user_ids: form.telegram_user_ids,
+      discord_bot_token: form.discord_bot_token,
+      discord_channel_ids: form.discord_channel_ids,
+      discord_user_ids: form.discord_user_ids,
       cookie_115: form.cookie_115,
       folder_id_115: form.folder_id_115,
       openlist_path_115: form.openlist_path_115,

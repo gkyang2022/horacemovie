@@ -93,12 +93,20 @@ export class TelegramService {
                     await this.replySearch(ctx, keyword);
                 });
 
-                this.bot.action('more_results', async (ctx) => {
+                this.bot.action('search_prev', async (ctx) => {
                     if (!(await this.isAuthorized(ctx))) {
                         await ctx.answerCbQuery('无权限使用该命令');
                         return;
                     }
-                    await this.handleMoreResults(ctx);
+                    await this.handleSearchPage(ctx, -1);
+                });
+
+                this.bot.action('search_next', async (ctx) => {
+                    if (!(await this.isAuthorized(ctx))) {
+                        await ctx.answerCbQuery('无权限使用该命令');
+                        return;
+                    }
+                    await this.handleSearchPage(ctx, 1);
                 });
 
                 this.bot.action('track_yes', async (ctx) => {
@@ -219,8 +227,9 @@ export class TelegramService {
             }
             this.cacheSearchResults(ctx, ordered, 1, 10);
             const msg = this.buildSearchMessage(ordered, 1, 10);
+            const totalPages = Math.ceil(ordered.length / 10);
             await cleanup();
-            ctx.reply(msg, this.buildMoreKeyboard(ordered, 1, 10));
+            ctx.reply(msg, this.buildPaginationKeyboard(1, totalPages));
         } catch (e: any) {
             console.error(`[TelegramService] Bot search error for "${keyword}":`, e.message);
             await cleanup();
@@ -297,9 +306,10 @@ export class TelegramService {
 
     private buildSearchMessage(items: any[], page: number, pageSize: number) {
         const total = items.length;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
         const startIndex = (page - 1) * pageSize;
         const endIndex = Math.min(startIndex + pageSize, total);
-        let msg = `找到以下资源:\n`;
+        let msg = `找到以下资源(第 ${page}/${totalPages} 页):\n`;
         items.slice(startIndex, endIndex).forEach((res, i) => {
             const index = startIndex + i + 1;
             msg += `${index}. ${this.truncateTitle(res.name)}\n🔗 ${res.url}\n\n`;
@@ -308,22 +318,21 @@ export class TelegramService {
         return msg;
     }
 
-    private buildMoreKeyboard(items: any[], page: number, pageSize: number) {
-        const total = items.length;
-        const totalPages = Math.ceil(total / pageSize);
-        if (page >= totalPages) {
-            return undefined;
-        }
+    private buildPaginationKeyboard(page: number, totalPages: number) {
+        if (totalPages <= 1) return undefined;
         return {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: '查看更多', callback_data: 'more_results' }]
+                    [
+                        { text: '上一页', callback_data: 'search_prev' },
+                        { text: '下一页', callback_data: 'search_next' }
+                    ]
                 ]
             }
         };
     }
 
-    private async handleMoreResults(ctx: any) {
+    private async handleSearchPage(ctx: any, direction: number) {
         const cached = this.getCachedResults(ctx);
         if (!cached) {
             await ctx.answerCbQuery('没有可用的搜索结果');
@@ -331,17 +340,19 @@ export class TelegramService {
         }
         const { items, page, pageSize } = cached;
         const totalPages = Math.ceil(items.length / pageSize);
-        if (page >= totalPages) {
+        const nextPage = page + direction;
+        if (nextPage < 1 || nextPage > totalPages) {
             await ctx.answerCbQuery('没有更多结果');
             return;
         }
-        const nextPage = page + 1;
         this.cacheSearchResults(ctx, items, nextPage, pageSize);
-        try {
-            await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
-        } catch {}
         const msg = this.buildSearchMessage(items, nextPage, pageSize);
-        await ctx.reply(msg, this.buildMoreKeyboard(items, nextPage, pageSize));
+        const keyboard = this.buildPaginationKeyboard(nextPage, totalPages);
+        try {
+            await ctx.editMessageText(msg, keyboard);
+        } catch {
+            await ctx.reply(msg, keyboard);
+        }
         await ctx.answerCbQuery();
     }
 

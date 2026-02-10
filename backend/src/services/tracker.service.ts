@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { getDb } from '../db/index.js';
 import { CloudStorageService } from './cloud-storage.service.js';
 import { TelegramService } from './telegram.service.js';
+import { DiscordService } from './discord.service.js';
 
 const cloudService = CloudStorageService.getInstance();
 
@@ -170,6 +171,7 @@ export class TrackerService {
                         }
 
                         await TelegramService.getInstance().notify(`追剧成功: ${task.name} 发现 ${newFiles.length} 个新内容，已转存到 ${type}`);
+                        await DiscordService.getInstance().notify(`追剧成功: ${task.name} 发现 ${newFiles.length} 个新内容，已转存到 ${type}`);
                         const successMessage = transferRes.message
                             ? `${transferRes.message}，共${topLevelNewFiles.length}项`
                             : `已转存${topLevelNewFiles.length}项`;

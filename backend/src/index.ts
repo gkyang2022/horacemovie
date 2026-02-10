@@ -14,6 +14,7 @@ import trackerRoutes from './routes/tracker.routes.js';
 import taskRoutes from './routes/task.routes.js';
 import { TrackerService } from './services/tracker.service.js';
 import { TelegramService } from './services/telegram.service.js';
+import { DiscordService } from './services/discord.service.js';
 import type { Server } from 'node:http';
 import type { Socket } from 'node:net';
 
@@ -63,9 +64,11 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 async function startServer() {
     try {
         await initDb();
-        const telegram = TelegramService.getInstance(); // Start bot
+        const telegram = TelegramService.getInstance();
         await telegram.init();
-        const tracker = TrackerService.getInstance(); // Start scheduler
+        const discord = DiscordService.getInstance();
+        await discord.init();
+        const tracker = TrackerService.getInstance();
         const server: Server = app.listen(port, () => {
             console.log(`HoraceMovie Backend running at http://localhost:${port}`);
         });
@@ -94,6 +97,7 @@ async function startServer() {
                 } catch {}
                 try {
                     void telegram.stop();
+                    void discord.stop();
                 } catch {}
                 try {
                     void closeDb();
@@ -110,6 +114,7 @@ async function startServer() {
             try {
                 await tracker.stop();
                 await telegram.stop();
+                await discord.stop();
             } catch {}
 
             try {

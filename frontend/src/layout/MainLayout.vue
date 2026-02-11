@@ -90,6 +90,8 @@ const toggleTheme = () => {
   color: var(--app-primary);
 }
 .menu {
+  display: flex;
+  align-items: center;
   flex: 1;
   border-bottom: none;
   background-color: var(--app-surface);
@@ -116,19 +118,25 @@ const toggleTheme = () => {
 
 @media (max-width: 500px) {
   .header {
-    flex-direction: column;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas:
+      "logo logo logo"
+      "menu theme user";
+    align-items: center;
     padding: 8px 12px;
     height: auto;
-    gap: 6px;
+    row-gap: 6px;
+    column-gap: 8px;
   }
   .logo {
+    grid-area: logo;
     margin-right: 0;
     font-size: 18px;
   }
   .menu {
+    grid-area: menu;
     width: 100%;
-    order: 3;
     overflow-x: auto;
   }
   .menu :deep(.el-menu) {
@@ -145,15 +153,15 @@ const toggleTheme = () => {
     flex: 0 0 auto;
   }
   .theme-toggle {
+    grid-area: theme;
     margin-right: 0;
-    margin-left: auto;
-    order: 2;
   }
   .user-info {
-    width: 100%;
+    grid-area: user;
+    width: auto;
     margin-left: 0;
-    padding-bottom: 8px;
-    order: 4;
+    padding-bottom: 0;
+    justify-self: end;
   }
   .user-info :deep(.el-dropdown-link) {
     font-size: 12px;

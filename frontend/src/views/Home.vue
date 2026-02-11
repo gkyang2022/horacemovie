@@ -668,6 +668,7 @@ onMounted(() => {
       align-items: center;
     }
     .tabs-titles {
+      margin-bottom: 0;
       flex: 1;
       gap: 10px;
       overflow-x: auto;

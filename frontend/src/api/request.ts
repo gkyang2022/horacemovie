@@ -56,9 +56,12 @@ service.interceptors.request.use(
     if (!requestUrl.includes('/auth/login') && !requestUrl.includes('/auth/refresh')) {
       try {
         await refreshTokenIfNeeded();
-      } catch {
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+      } catch (error: any) {
+        const status = error?.response?.status;
+        if (status === 401 || status === 403) {
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+        }
       }
     }
     const userStr = localStorage.getItem('user');

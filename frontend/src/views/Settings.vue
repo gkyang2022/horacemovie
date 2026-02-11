@@ -19,7 +19,7 @@
           <el-input v-model="form.pansou_url" placeholder="http://127.0.0.1:8888" />
         </el-form-item>
 
-        <el-divider content-position="left">OpenList 配置</el-divider>
+        <el-divider content-position="left">OpenList 配置（可选）</el-divider>
         <el-form-item label="OpenList API 地址">
           <el-input v-model="form.openlist_url" placeholder="http://127.0.0.1:5244" />
         </el-form-item>
@@ -33,7 +33,7 @@
           <el-input v-model="form.openlist_default_path" placeholder="/volume1/Media" />
         </el-form-item>
 
-        <el-divider content-position="left">网盘配置</el-divider>
+        <el-divider content-position="left">网盘配置（可选）</el-divider>
         <el-form-item label="115 Cookie">
           <el-input v-model="form.cookie_115" type="password" show-password />
         </el-form-item>
@@ -54,7 +54,7 @@
           <el-input v-model="form.openlist_path_quark" placeholder="OpenList中夸克网盘挂载的路径, 如 /quark" />
         </el-form-item>
 
-        <el-divider content-position="left">Telegram Bot 配置</el-divider>
+        <el-divider content-position="left">Telegram Bot 配置（可选）</el-divider>
         <el-form-item label="Bot Token">
           <el-input v-model="form.telegram_bot_token" placeholder="123456789:ABCDEF..." type="password" show-password />
         </el-form-item>
@@ -64,7 +64,7 @@
         <el-form-item label="User IDs">
           <el-input v-model="form.telegram_user_ids" placeholder="多个用逗号/空格/换行分隔，留空则允许所有用户使用命令" />
         </el-form-item>
-        <el-divider content-position="left">Discord Bot 配置</el-divider>
+        <el-divider content-position="left">Discord Bot 配置（可选）</el-divider>
         <el-form-item label="Bot Token">
           <el-input v-model="form.discord_bot_token" placeholder="Discord Bot Token" type="password" show-password />
         </el-form-item>
@@ -117,7 +117,7 @@
 
 <script setup lang="ts">
 import { reactive, onMounted, ref, computed } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
 import { getSettings, updateSettings } from '../api/system';
 import { getUsers, createUser, deleteUser, updateMe } from '../api/auth';
 
@@ -208,6 +208,7 @@ const handleDeleteUser = (id: number) => {
 
 const handleSave = async () => {
   loading.value = true;
+  let saveErrorMessage = '';
   try {
     await updateSettings({
       pansou_url: form.pansou_url,
@@ -228,10 +229,25 @@ const handleSave = async () => {
       folder_id_quark: form.folder_id_quark,
       openlist_path_quark: form.openlist_path_quark
     });
-
-    ElMessage.success('配置已成功保存');
+  } catch (error: any) {
+    saveErrorMessage = error.response?.data?.error || '配置保存失败';
   } finally {
     loading.value = false;
+  }
+  if (saveErrorMessage) {
+    ElNotification({
+      title: '保存失败',
+      message: saveErrorMessage,
+      type: 'error',
+      duration: 3500
+    });
+  } else {
+    ElNotification({
+      title: '保存成功',
+      message: '配置已成功保存',
+      type: 'success',
+      duration: 2500
+    });
   }
 };
 
@@ -244,4 +260,5 @@ onMounted(() => {
 .settings {
   padding: 20px;
 }
+
 </style>

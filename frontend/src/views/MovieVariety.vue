@@ -542,4 +542,28 @@ onMounted(() => {
     font-size: 20px;
   }
 }
+
+@media (max-width: 500px) {
+  .variety-container {
+    padding: 12px;
+  }
+  .sub-tabs {
+    gap: 12px;
+    overflow-x: auto;
+  }
+  .sub-tab-item {
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .filters-section {
+    padding: 12px;
+  }
+  .filter-label {
+    width: 50px;
+  }
+  .media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+}
 </style>

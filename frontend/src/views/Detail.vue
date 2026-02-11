@@ -539,4 +539,34 @@ onMounted(() => {
 :deep(.resource-dialog .el-dialog__body) {
   padding-top: 10px;
 }
+
+@media (max-width: 500px) {
+  .detail-page {
+    padding: 12px;
+  }
+  .detail-container {
+    flex-direction: column;
+    gap: 20px;
+    padding: 16px;
+  }
+  .main-poster {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 2 / 3;
+  }
+  .title {
+    font-size: 22px;
+  }
+  .year {
+    font-size: 16px;
+  }
+  .actions {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .resource-dialog-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
 </style>

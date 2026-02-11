@@ -731,4 +731,29 @@ onUnmounted(() => {
 .main-tabs :deep(.el-tabs__header) {
   margin-bottom: 20px;
 }
+
+@media (max-width: 500px) {
+  .tasks-container {
+    padding: 12px;
+  }
+  .header {
+    margin-bottom: 16px;
+  }
+  .task-tabs {
+    margin-top: 6px;
+  }
+  .batch-ops {
+    gap: 8px;
+  }
+  .op-buttons {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .task-detail {
+    padding: 8px 12px;
+  }
+  :deep(.el-table__body-wrapper) {
+    overflow-x: auto;
+  }
+}
 </style>

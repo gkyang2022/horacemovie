@@ -43,3 +43,18 @@
   color: var(--app-border);
   font-weight: 300;
 }
+
+@media (max-width: 500px) {
+  .tabs-titles {
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  .tab-title {
+    font-size: 20px;
+    white-space: nowrap;
+  }
+  .tab-divider {
+    font-size: 18px;
+  }
+}

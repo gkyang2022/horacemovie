@@ -113,4 +113,58 @@ const toggleTheme = () => {
 .user-info {
   margin-left: 20px;
 }
+
+@media (max-width: 500px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px 12px;
+    height: auto;
+    gap: 6px;
+  }
+  .logo {
+    margin-right: 0;
+    font-size: 18px;
+  }
+  .menu {
+    width: 100%;
+    order: 3;
+    overflow-x: auto;
+  }
+  .menu :deep(.el-menu) {
+    width: max-content;
+    min-width: 100%;
+    display: inline-flex;
+    overflow-x: auto;
+  }
+  .menu :deep(.el-menu-item) {
+    padding: 0 8px;
+    font-size: 13px;
+    height: 40px;
+    line-height: 40px;
+    flex: 0 0 auto;
+  }
+  .theme-toggle {
+    margin-right: 0;
+    margin-left: auto;
+    order: 2;
+  }
+  .user-info {
+    width: 100%;
+    margin-left: 0;
+    padding-bottom: 8px;
+    order: 4;
+  }
+  .user-info :deep(.el-dropdown-link) {
+    font-size: 12px;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .menu :deep(.el-menu::-webkit-scrollbar) {
+    height: 0;
+  }
+}
 </style>

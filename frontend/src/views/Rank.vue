@@ -319,4 +319,20 @@ onMounted(fetchData);
   justify-content: center;
   padding: 20px 0;
 }
+
+@media (max-width: 500px) {
+  .rank-container {
+    padding: 12px;
+  }
+  .filters-section {
+    padding: 12px;
+  }
+  .filter-label {
+    width: 50px;
+  }
+  .media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+}
 </style>

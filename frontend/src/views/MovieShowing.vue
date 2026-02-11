@@ -282,4 +282,14 @@ watch(() => route.query.type, () => {
     gap: 15px;
   }
 }
+
+@media (max-width: 500px) {
+  .showing-container {
+    padding: 12px;
+  }
+  .media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+}
 </style>

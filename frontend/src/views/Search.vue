@@ -317,4 +317,21 @@ const goToDetail = (item: DoubanMedia) => {
   background: var(--app-surface-muted);
   color: var(--app-text-muted);
 }
+
+@media (max-width: 500px) {
+  .search-input {
+    margin: 12px 12px 10px;
+  }
+  .history-container {
+    margin: 0 12px 16px;
+  }
+  .media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    padding: 12px 0;
+  }
+  .info {
+    padding: 8px;
+  }
+}
 </style>

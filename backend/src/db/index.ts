@@ -284,7 +284,7 @@ export async function initDb() {
     }
 
     // Create default admin if not exists
-    const adminExists = await db.get('SELECT id FROM users WHERE username = ?', 'admin');
+    const adminExists = await db.get('SELECT id FROM users WHERE role = ?', 'admin');
     if (!adminExists) {
         const randomPassword = crypto.randomBytes(6).toString('hex');
         const now = new Date().toLocaleString('sv-SE');

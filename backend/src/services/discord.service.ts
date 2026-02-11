@@ -44,6 +44,15 @@ export class DiscordService {
         }
     }
 
+    public async reload() {
+        await this.stop();
+        this.initialized = false;
+        this.lastSearchResults.clear();
+        this.pendingTrackRequests.clear();
+        this.pendingTransferRequests.clear();
+        await this.init();
+    }
+
     private async initClient() {
         const db = getDb();
         const tokenRow = await db.get('SELECT value FROM settings WHERE key = ?', 'discord_bot_token');

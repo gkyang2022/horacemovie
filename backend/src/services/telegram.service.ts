@@ -46,6 +46,16 @@ export class TelegramService {
         }
     }
 
+    public async reload() {
+        await this.stop();
+        this.initialized = false;
+        this.botUsername = null;
+        this.lastSearchResults.clear();
+        this.pendingTrackRequests.clear();
+        this.pendingTransferRequests.clear();
+        await this.init();
+    }
+
     private async initBot() {
         const db = getDb();
         try {

@@ -228,23 +228,37 @@ const fetchData = async () => {
 
 const executeResourceSearch = async (forceRefresh = false) => {
   if (!detail.value) return;
-  resourceDialog.value = true;
   searchLoading.value = true;
-  resources.value = []; // Clear previous results
+  resources.value = [];
   try {
     const data = await searchPansou(detail.value.title, forceRefresh);
     resources.value = (data as any[]).map(item => ({
       ...item,
       type: getCloudTypeFromResource(item)
     }));
+    resourceDialog.value = true;
     if (data.length === 0) {
       ElMessage.warning('未找到相关网盘资源');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Pansou search failed:', error);
-    // Error is already shown by request interceptor, 
-    // we just need to make sure the UI reflects the failure
-    resourceDialog.value = false; // Close dialog on error to avoid showing empty state
+    const errorCode = error?.response?.data?.code || '';
+    const errorMsg = error?.response?.data?.error || error?.message || '搜索失败';
+    if (errorCode === 'PANSOU_NOT_CONFIGURED') {
+      ElMessageBox.confirm(
+        '未配置盘搜 API，请在设置页填写 pansou_url',
+        '盘搜未配置',
+        {
+          confirmButtonText: '去设置',
+          cancelButtonText: '知道了',
+          type: 'warning'
+        }
+      ).then(() => {
+        router.push('/settings');
+      }).catch(() => {});
+      return;
+    }
+    ElMessage.error(errorMsg);
   } finally {
     searchLoading.value = false;
   }

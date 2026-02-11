@@ -29,7 +29,10 @@ export class PansouService {
         
         if (!pansouUrlSetting || !pansouUrlSetting.value) {
             logger.error('[PansouService] Pansou API URL not configured in settings');
-            throw new Error('Pansou API URL not configured');
+            const err: any = new Error('未配置盘搜 API，请在设置中配置 pansou_url');
+            err.code = 'PANSOU_NOT_CONFIGURED';
+            err.status = 400;
+            throw err;
         }
 
         let baseUrl = pansouUrlSetting.value.trim();

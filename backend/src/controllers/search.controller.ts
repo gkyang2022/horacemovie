@@ -33,6 +33,11 @@ export const searchResources = async (req: Request, res: Response) => {
             q: keyword,
             error
         });
-        res.status(500).json({ error: error.message });
+        const status = typeof error?.status === 'number' ? error.status : 500;
+        const payload: any = { error: error.message };
+        if (error?.code) {
+            payload.code = error.code;
+        }
+        res.status(status).json(payload);
     }
 };

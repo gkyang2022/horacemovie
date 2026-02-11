@@ -97,8 +97,13 @@ service.interceptors.response.use(
       }
     }
     const errorMsg = error.response?.data?.error || error.message || '网络错误';
+    const errorCode = error.response?.data?.code || '';
     const requestUrl = error.config?.url || '';
+    const skipErrorMessage = Boolean((error.config as any)?.skipErrorMessage);
     let displayMsg = errorMsg;
+    if (errorCode === 'PANSOU_NOT_CONFIGURED') {
+      displayMsg = '未配置盘搜 API，请在设置页填写 pansou_url';
+    }
     if (
       requestUrl.includes('/transfer/save') &&
       (errorMsg.includes('夸克分享 Token 失败') || errorMsg.includes('stoken') || errorMsg.includes('sharepage/token'))
@@ -106,7 +111,9 @@ service.interceptors.response.use(
       displayMsg = '夸克分享链接已失效或被取消，请确认提取码并重新获取分享链接';
     }
     console.error(`[API Response Error] ${requestUrl}:`, errorMsg);
-    ElMessage.error(displayMsg);
+    if (!skipErrorMessage) {
+      ElMessage.error(displayMsg);
+    }
     return Promise.reject(error);
   }
 );

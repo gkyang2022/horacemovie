@@ -3,7 +3,10 @@ import request from './request';
 export const getSettings = () => request.get('/settings');
 export const updateSettings = (data: any) => request.post('/settings', data);
 
-export const searchPansou = (q: string, refresh?: boolean) => request.get<any, any[]>('/search', { params: { q, refresh: refresh ? true : undefined } });
+export const searchPansou = (q: string, refresh?: boolean) => request.get<any, any[]>('/search', {
+  params: { q, refresh: refresh ? true : undefined },
+  skipErrorMessage: true
+} as any);
 
 export const saveToCloud = (data: { shareUrl: string, type: string, mediaName: string }) => 
   request.post<any, { message: string }>('/transfer/save', data);

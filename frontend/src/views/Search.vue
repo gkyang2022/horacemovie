@@ -60,7 +60,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Search as SearchIcon } from '@element-plus/icons-vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
 import { searchDouban, type DoubanMedia } from '../api/douban';
 import { saveToCloud } from '../api/system';
 import request from '../api/request';
@@ -176,6 +176,15 @@ const handleSearch = async () => {
         });
         ElMessage.success('追剧任务创建成功');
       }
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.error || error?.message || '转存失败';
+      ElNotification({
+        title: '转存失败',
+        message: errorMsg,
+        type: 'error',
+        duration: 3500
+      });
+      return;
     } finally {
       loading.value = false;
     }

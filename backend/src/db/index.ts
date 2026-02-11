@@ -295,7 +295,7 @@ export async function initDb() {
         console.log('*                                              *');
         console.log('*   Initial Admin Created Successfully!        *');
         console.log('*   Username: admin                            *');
-        console.log(`*   Password: ${randomPassword}                 *`);
+        console.log(`*   Password: ${randomPassword}                     *`);
         console.log('*                                              *');
         console.log('*   Please change this password after login.   *');
         console.log('************************************************');

@@ -351,7 +351,13 @@ const handleSave = async (row: any) => {
       }, 500);
     }
   } catch (e) {
-    // Error handled by interceptor
+    const errorMsg = (e as any)?.response?.data?.error || (e as any)?.message || '转存失败';
+    ElNotification({
+      title: '转存失败',
+      message: errorMsg,
+      type: 'error',
+      duration: 3500
+    });
   }
 };
 

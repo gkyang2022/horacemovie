@@ -156,6 +156,16 @@ export async function initDb() {
             created_at DATETIME DEFAULT (DATETIME('now', 'localtime'))
         );
 
+        CREATE TABLE IF NOT EXISTS user_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token_hash TEXT UNIQUE NOT NULL,
+            expires_at DATETIME,
+            created_at DATETIME DEFAULT (DATETIME('now', 'localtime'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_user_tokens_user_id ON user_tokens(user_id);
+
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT
@@ -261,7 +271,7 @@ export async function initDb() {
         }
     }
 
-    const users = await db.all('SELECT id, password, api_token FROM users');
+    const users = await db.all('SELECT id, password, api_token, token_expires_at FROM users');
     for (const user of users) {
         if (user.password && typeof user.password === 'string' && !user.password.startsWith('scrypt$')) {
             const passwordHash = hashPassword(user.password);
@@ -270,6 +280,16 @@ export async function initDb() {
         if (user.api_token && typeof user.api_token === 'string' && !/^[0-9a-fA-F]{64}$/.test(user.api_token)) {
             const tokenHash = hashToken(user.api_token);
             await db.run('UPDATE users SET api_token = ? WHERE id = ?', tokenHash, user.id);
+        }
+    }
+    for (const user of users) {
+        if (user.api_token) {
+            await db.run(
+                'INSERT OR IGNORE INTO user_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
+                user.id,
+                user.api_token,
+                user.token_expires_at
+            );
         }
     }
 

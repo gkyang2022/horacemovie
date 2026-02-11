@@ -35,7 +35,17 @@ export const login = async (req: Request, res: Response) => {
             }
             const { token, expiresAt, expiresAtMs } = createTokenPayload();
             const tokenHash = hashToken(token);
-            await db.run('UPDATE users SET api_token = ?, token_expires_at = ? WHERE id = ?', tokenHash, expiresAt, user.id);
+            await db.run(
+                'INSERT INTO user_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
+                user.id,
+                tokenHash,
+                expiresAt
+            );
+            await db.run(
+                'DELETE FROM user_tokens WHERE user_id = ? AND expires_at IS NOT NULL AND expires_at <= ?',
+                user.id,
+                new Date().toLocaleString('sv-SE')
+            );
             setCachedAuthUser(token, { id: user.id, username: user.username, role: user.role }, expiresAtMs);
             res.json({
                 id: user.id,
@@ -64,7 +74,7 @@ export const logout = async (req: Request, res: Response) => {
     }
     try {
         const tokenHash = hashToken(token);
-        await db.run('UPDATE users SET api_token = NULL, token_expires_at = NULL WHERE id = ? AND api_token = ?', authUser.id, tokenHash);
+        await db.run('DELETE FROM user_tokens WHERE user_id = ? AND token_hash = ?', authUser.id, tokenHash);
         revokeAuthToken(token);
         res.json({ message: '已退出登录' });
     } catch (error: any) {
@@ -87,7 +97,7 @@ export const refreshToken = async (req: Request, res: Response) => {
         const tokenHash = hashToken(token);
         const newTokenHash = hashToken(newToken);
         const result = await db.run(
-            'UPDATE users SET api_token = ?, token_expires_at = ? WHERE id = ? AND api_token = ?',
+            'UPDATE user_tokens SET token_hash = ?, expires_at = ? WHERE user_id = ? AND token_hash = ?',
             newTokenHash,
             expiresAt,
             authUser.id,

@@ -75,14 +75,17 @@ app.use(async (req, res, next) => {
         const now = new Date().toLocaleString('sv-SE');
         const tokenHash = hashToken(token);
         const user = await db.get(
-            'SELECT id, username, role, token_expires_at FROM users WHERE api_token = ? AND (token_expires_at IS NULL OR token_expires_at > ?)',
+            `SELECT u.id, u.username, u.role, t.expires_at
+             FROM user_tokens t
+             JOIN users u ON u.id = t.user_id
+             WHERE t.token_hash = ? AND (t.expires_at IS NULL OR t.expires_at > ?)`,
             tokenHash,
             now
         );
         if (!user) {
             return res.status(401).json({ error: '登录已过期' });
         }
-        const expiresAtMs = parseExpiresAt(user.token_expires_at);
+        const expiresAtMs = parseExpiresAt(user.expires_at);
         setCachedAuthUser(token, { id: user.id, username: user.username, role: user.role }, expiresAtMs);
         (req as any).user = user;
         next();

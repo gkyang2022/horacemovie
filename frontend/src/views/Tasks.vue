@@ -264,7 +264,7 @@ import {
   type UserTasks 
 } from '../api/tasks';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import axios from 'axios';
+import request from '../api/request';
 
 const route = useRoute();
 const router = useRouter();
@@ -545,7 +545,7 @@ const getRunTagType = (status?: string) => {
 const fetchTrackerTasks = async () => {
   trackerLoading.value = true;
   try {
-    const { data } = await axios.get('/api/tracker/tasks');
+    const data = await request.get<any, any[]>('/tracker/tasks');
     trackerTasks.value = data;
   } catch (error) {
     ElMessage.error('获取追剧任务失败');
@@ -556,7 +556,7 @@ const fetchTrackerTasks = async () => {
 
 const handleTrackerRunNow = async (row: any) => {
   try {
-    await axios.post(`/api/tracker/tasks/${row.id}/run`);
+    await request.post(`/tracker/tasks/${row.id}/run`);
     ElMessage.success('任务已启动');
     fetchTrackerTasks();
   } catch (error) {
@@ -587,7 +587,7 @@ const submitTrackerEdit = async () => {
   }
   trackerSubmitting.value = true;
   try {
-    await axios.put(`/api/tracker/tasks/${currentTrackerId.value}`, {
+    await request.put(`/tracker/tasks/${currentTrackerId.value}`, {
       ...trackerForm.value,
       status: trackerTasks.value.find(t => t.id === currentTrackerId.value)?.status || 'active'
     });
@@ -604,7 +604,7 @@ const submitTrackerEdit = async () => {
 const toggleTrackerStatus = async (row: any) => {
   const newStatus = row.status === 'active' ? 'paused' : 'active';
   try {
-    await axios.put(`/api/tracker/tasks/${row.id}`, {
+    await request.put(`/tracker/tasks/${row.id}`, {
       status: newStatus,
       interval_value: row.interval_value,
       interval_unit: row.interval_unit || 'hour'
@@ -620,7 +620,7 @@ const handleTrackerDelete = (row: any) => {
   ElMessageBox.confirm('确定删除该追剧任务吗?', '提示', { type: 'warning' })
     .then(async () => {
       try {
-        await axios.delete(`/api/tracker/tasks/${row.id}`);
+        await request.delete(`/tracker/tasks/${row.id}`);
         ElMessage.success('已删除');
         fetchTrackerTasks();
       } catch (error) {

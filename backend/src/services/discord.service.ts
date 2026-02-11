@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, Client, GatewayIntentBits, Partials } from 'discord.js';
-import { getDb } from '../db/index.js';
+import { getDb, decryptSettingValue } from '../db/index.js';
 import { PansouService } from './pansou.service.js';
 import { CloudStorageService } from './cloud-storage.service.js';
 import { OpenListService } from './openlist.service.js';
@@ -47,7 +47,7 @@ export class DiscordService {
     private async initClient() {
         const db = getDb();
         const tokenRow = await db.get('SELECT value FROM settings WHERE key = ?', 'discord_bot_token');
-        const token = tokenRow?.value;
+        const token = tokenRow?.value ? decryptSettingValue('discord_bot_token', tokenRow.value) : '';
         if (!token) {
             logger.info('[DiscordService] No Discord token found in settings, bot will not start');
             return;
@@ -609,7 +609,7 @@ export class DiscordService {
         const rows = await db.all('SELECT key, value FROM settings WHERE key IN ("discord_bot_token", "discord_channel_ids", "discord_user_ids")');
         const settings: any = {};
         rows.forEach(row => {
-            settings[row.key] = row.value;
+            settings[row.key] = decryptSettingValue(row.key, row.value);
         });
         return {
             channelIds: this.parseIdList(settings.discord_channel_ids),

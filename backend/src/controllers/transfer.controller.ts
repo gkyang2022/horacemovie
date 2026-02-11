@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { CloudStorageService } from '../services/cloud-storage.service.js';
 import { OpenListService } from '../services/openlist.service.js';
-import { getDb } from '../db/index.js';
+import { getDb, decryptSettingValue } from '../db/index.js';
 import { logger } from '../logger.js';
 
 const cloudService = CloudStorageService.getInstance();
@@ -19,7 +19,7 @@ export const transferAndSync = async (req: Request, res: Response) => {
         const settingsRows = await db.all('SELECT key, value FROM settings WHERE key IN (?, ?)', [cookieKey, folderKey]);
         const settings: any = {};
         settingsRows.forEach(row => {
-            settings[row.key] = row.value;
+            settings[row.key] = decryptSettingValue(row.key, row.value);
         });
 
         const cookie = settings[cookieKey];
@@ -42,7 +42,7 @@ export const transferAndSync = async (req: Request, res: Response) => {
             const settingsRows2 = await db.all('SELECT key, value FROM settings WHERE key IN (?, ?)', [openlistPathKey, 'openlist_default_path']);
             const settings2: any = {};
             settingsRows2.forEach(row => {
-                settings2[row.key] = row.value;
+                settings2[row.key] = decryptSettingValue(row.key, row.value);
             });
             
             const openlistSourcePath = settings2[openlistPathKey];

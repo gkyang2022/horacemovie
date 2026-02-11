@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { randomBytes } from 'node:crypto';
-import { getDb, revokeAuthToken, setCachedAuthUser } from '../db/index.js';
+import { getDb, revokeAuthToken, setCachedAuthUser, hashPassword, verifyPassword, hashToken } from '../db/index.js';
 
 const createToken = () => randomBytes(24).toString('hex');
 const createTokenPayload = () => {
@@ -23,10 +23,19 @@ export const login = async (req: Request, res: Response) => {
     const db = getDb();
 
     try {
-        const user = await db.get('SELECT * FROM users WHERE username = ? AND password = ?', username, password);
+        const user = await db.get('SELECT * FROM users WHERE username = ?', username);
         if (user) {
+            const verify = verifyPassword(password, user.password);
+            if (!verify.valid) {
+                return res.status(401).json({ error: '用户名或密码错误' });
+            }
+            if (verify.needsUpgrade) {
+                const upgraded = hashPassword(password);
+                await db.run('UPDATE users SET password = ? WHERE id = ?', upgraded, user.id);
+            }
             const { token, expiresAt, expiresAtMs } = createTokenPayload();
-            await db.run('UPDATE users SET api_token = ?, token_expires_at = ? WHERE id = ?', token, expiresAt, user.id);
+            const tokenHash = hashToken(token);
+            await db.run('UPDATE users SET api_token = ?, token_expires_at = ? WHERE id = ?', tokenHash, expiresAt, user.id);
             setCachedAuthUser(token, { id: user.id, username: user.username, role: user.role }, expiresAtMs);
             res.json({
                 id: user.id,
@@ -54,7 +63,8 @@ export const logout = async (req: Request, res: Response) => {
         return res.status(401).json({ error: '未登录' });
     }
     try {
-        await db.run('UPDATE users SET api_token = NULL, token_expires_at = NULL WHERE id = ? AND api_token = ?', authUser.id, token);
+        const tokenHash = hashToken(token);
+        await db.run('UPDATE users SET api_token = NULL, token_expires_at = NULL WHERE id = ? AND api_token = ?', authUser.id, tokenHash);
         revokeAuthToken(token);
         res.json({ message: '已退出登录' });
     } catch (error: any) {
@@ -74,12 +84,14 @@ export const refreshToken = async (req: Request, res: Response) => {
     }
     const { token: newToken, expiresAt, expiresAtMs } = createTokenPayload();
     try {
+        const tokenHash = hashToken(token);
+        const newTokenHash = hashToken(newToken);
         const result = await db.run(
             'UPDATE users SET api_token = ?, token_expires_at = ? WHERE id = ? AND api_token = ?',
-            newToken,
+            newTokenHash,
             expiresAt,
             authUser.id,
-            token
+            tokenHash
         );
         if (!result || result.changes === 0) {
             return res.status(401).json({ error: '登录已过期' });
@@ -122,7 +134,8 @@ export const createUser = async (req: Request, res: Response) => {
 
     try {
         const now = new Date().toLocaleString('sv-SE');
-        await db.run('INSERT INTO users (username, password, role, created_at) VALUES (?, ?, ?, ?)', username, password, role || 'guest', now);
+        const passwordHash = hashPassword(password);
+        await db.run('INSERT INTO users (username, password, role, created_at) VALUES (?, ?, ?, ?)', username, passwordHash, role || 'guest', now);
         res.json({ message: '用户创建成功' });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -155,7 +168,8 @@ export const updateMe = async (req: Request, res: Response) => {
 
     try {
         if (password) {
-            await db.run('UPDATE users SET username = ?, password = ? WHERE id = ?', username, password, authUser.id);
+            const passwordHash = hashPassword(password);
+            await db.run('UPDATE users SET username = ?, password = ? WHERE id = ?', username, passwordHash, authUser.id);
         } else {
             await db.run('UPDATE users SET username = ? WHERE id = ?', username, authUser.id);
         }

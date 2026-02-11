@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { randomUUID } from 'node:crypto';
 import 'express-async-errors';
-import { closeDb, initDb, getDb, getCachedAuthUser, setCachedAuthUser } from './db/index.js';
+import { closeDb, initDb, getDb, getCachedAuthUser, setCachedAuthUser, hashToken } from './db/index.js';
 import doubanRoutes from './routes/douban.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import searchRoutes from './routes/search.routes.js';
@@ -73,9 +73,10 @@ app.use(async (req, res, next) => {
     try {
         const db = getDb();
         const now = new Date().toLocaleString('sv-SE');
+        const tokenHash = hashToken(token);
         const user = await db.get(
             'SELECT id, username, role, token_expires_at FROM users WHERE api_token = ? AND (token_expires_at IS NULL OR token_expires_at > ?)',
-            token,
+            tokenHash,
             now
         );
         if (!user) {

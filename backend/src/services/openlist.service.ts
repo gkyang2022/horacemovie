@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getDb } from '../db/index.js';
+import { getDb, decryptSettingValue } from '../db/index.js';
 import { logger } from '../logger.js';
 
 export class OpenListService {
@@ -19,7 +19,7 @@ export class OpenListService {
         const settings = await db.all('SELECT key, value FROM settings WHERE key LIKE "openlist_%"');
         const config: any = {};
         settings.forEach(s => {
-            config[s.key] = s.value;
+            config[s.key] = decryptSettingValue(s.key, s.value);
         });
         return config;
     }

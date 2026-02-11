@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { getDb } from '../db/index.js';
+import { getDb, decryptSettingValue } from '../db/index.js';
 import { CloudStorageService } from './cloud-storage.service.js';
 import { TelegramService } from './telegram.service.js';
 import { DiscordService } from './discord.service.js';
@@ -101,7 +101,7 @@ export class TrackerService {
             const settingsRows = await db.all('SELECT key, value FROM settings WHERE key IN ("cookie_quark", "openlist_path_quark", "openlist_default_path")');
             const settings: any = {};
             settingsRows.forEach(row => {
-                settings[row.key] = row.value;
+                settings[row.key] = decryptSettingValue(row.key, row.value);
             });
 
             // --- 链接追踪模式 ---

@@ -1,5 +1,5 @@
 import { Telegraf } from 'telegraf';
-import { getDb } from '../db/index.js';
+import { getDb, decryptSettingValue } from '../db/index.js';
 import { PansouService } from './pansou.service.js';
 import { CloudStorageService } from './cloud-storage.service.js';
 import { OpenListService } from './openlist.service.js';
@@ -50,9 +50,10 @@ export class TelegramService {
         const db = getDb();
         try {
             const token = await db.get('SELECT value FROM settings WHERE key = ?', 'telegram_bot_token');
-            if (token && token.value) {
+            const tokenValue = token?.value ? decryptSettingValue('telegram_bot_token', token.value) : '';
+            if (tokenValue) {
                 logger.info('[TelegramService] Initializing Telegram Bot with token from DB');
-                this.bot = new Telegraf(token.value);
+                this.bot = new Telegraf(tokenValue);
                 try {
                     const me = await this.bot.telegram.getMe();
                     this.botUsername = me.username ? `@${me.username}` : null;
@@ -482,7 +483,7 @@ export class TelegramService {
         );
         const settings: any = {};
         settingsRows.forEach(row => {
-            settings[row.key] = row.value;
+            settings[row.key] = decryptSettingValue(row.key, row.value);
         });
 
         const cookie = settings[cookieKey];
@@ -672,7 +673,7 @@ export class TelegramService {
         const rows = await db.all('SELECT key, value FROM settings WHERE key IN ("telegram_chat_id", "telegram_chat_ids", "telegram_user_ids")');
         const settings: any = {};
         rows.forEach(row => {
-            settings[row.key] = row.value;
+            settings[row.key] = decryptSettingValue(row.key, row.value);
         });
 
         const chatIds = new Set<string>([

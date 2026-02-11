@@ -63,6 +63,7 @@ services:
    - 配置 **网盘设置**：填写 115 或 夸克的 Cookie，以及默认转存目录。
    - (可选) 配置 **OpenList 设置**：填写 OpenList 地址、用户名、密码和同步路径，用于后续同步。
    - (可选) 配置 **Telegram**：配置 Bot Token、可用的 Chat IDs（群聊白名单） 与 User IDs（用户白名单）。
+   - (可选) 配置 **Discord**：配置 Bot Token、可用的 Channel IDs（频道白名单） 与 User IDs（用户白名单）。
 
 2. **资源检索与转存**：
    - 在 **首页** 、 **搜索** 或 **排行榜** 页面查找影视资源。
@@ -78,8 +79,8 @@ services:
    - 系统将定期检查更新，发现新资源后自动完成搜索与转存流程。
 
 5. **通讯工具集成（可选）**：
-   > 如果配置了 **Telegram Bot** 等机器人，会自动通知转存、同步结果。
-   - 在 Telegram Bot 进行资源搜索、转存。
+   > 如果配置了 **Telegram / Discord Bot** 等机器人，会自动通知转存、同步结果。
+   - 在 Telegram / Discord Bot 进行资源搜索、转存。
    - 转存、同步和追踪等任务完成后会通过机器人进行通知
 
 ## 配置说明
@@ -87,6 +88,7 @@ services:
 - 搜索接口：在系统设置中填写可用的 Pansou 搜索地址（如 localhost:8888）。
 - 网盘设置：配置网盘 Cookie、默认转存目录以及 OpenList 对应的挂载路径。
 - Telegram 配置：配置 Bot Token、可用的 Chat IDs（群聊白名单） 与 User IDs（用户白名单）。
+- Discord 配置：配置 Bot Token、可用的 Channel IDs（频道白名单） 与 User IDs（用户白名单）。
 - OpenList 配置：配置服务地址、账号信息与默认同步路径。
 
 ## 许可证

@@ -228,6 +228,7 @@ const fetchData = async () => {
 
 const executeResourceSearch = async (forceRefresh = false) => {
   if (!detail.value) return;
+  resourceDialog.value = true;
   searchLoading.value = true;
   resources.value = [];
   try {
@@ -236,7 +237,6 @@ const executeResourceSearch = async (forceRefresh = false) => {
       ...item,
       type: getCloudTypeFromResource(item)
     }));
-    resourceDialog.value = true;
     if (data.length === 0) {
       ElMessage.warning('未找到相关网盘资源');
     }
@@ -256,6 +256,7 @@ const executeResourceSearch = async (forceRefresh = false) => {
       ).then(() => {
         router.push('/settings');
       }).catch(() => {});
+      resourceDialog.value = false;
       return;
     }
     ElMessage.error(errorMsg);
@@ -510,6 +511,12 @@ onMounted(() => {
 
 .resource-tabs {
   margin-top: -10px;
+}
+
+.resource-loading {
+  padding: 24px 16px;
+  color: var(--app-text-muted);
+  font-size: 14px;
 }
 
 .op-buttons {

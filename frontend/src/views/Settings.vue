@@ -16,7 +16,7 @@
       <template v-if="isAdmin">
         <el-divider content-position="left">Pansou 配置</el-divider>
         <el-form-item label="Pansou API 地址">
-          <el-input v-model="form.pansou_url" placeholder="https://api.pansou.com" />
+          <el-input v-model="form.pansou_url" placeholder="http://127.0.0.1:8888" />
         </el-form-item>
 
         <el-divider content-position="left">OpenList 配置</el-divider>

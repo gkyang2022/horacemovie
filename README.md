@@ -20,9 +20,7 @@
 ```yaml
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: leaosunday/horacemovie-backend:latest
     container_name: horacemovie-backend
     ports:
       - "8008:8008"
@@ -32,6 +30,8 @@ services:
       NODE_ENV: production
       PORT: "8008"
       DB_PATH: /app/data/horacemovie.db
+      ENCRYPTION_KEY: YOUR_ENCRYPTION_KEY
+      TOKEN_SECRET: YOUR_TOKEN_SECRET
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:8008/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
@@ -40,9 +40,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: leaosunday/horacemovie-frontend:latest
     container_name: horacemovie-frontend
     ports:
       - "8080:80"

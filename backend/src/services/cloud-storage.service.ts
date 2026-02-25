@@ -69,6 +69,7 @@ export class CloudStorageService {
     private async getQuarkStoken(cookie: string, shareId: string, passCode: string): Promise<string> {
         const domains = ['https://drive-h.quark.cn', 'https://pan.quark.cn'];
         const commonParams = `pr=ucpro&fr=pc&__t=${Date.now()}`;
+        let lastError = '';
         
         for (const domain of domains) {
             try {
@@ -82,18 +83,61 @@ export class CloudStorageService {
                     timeout: 15000
                 });
 
-                if (res.data?.status === 200 && res.data.data?.stoken) {
+                const status = res.data?.status;
+                const message = res.data?.message || '';
+                if (status === 200 && res.data.data?.stoken) {
                     return res.data.data.stoken;
-                } else if (res.data?.status === 403 || res.data?.status === 40001) {
-                    const msg = res.data?.message || '提取码错误或链接失效';
-                    throw new Error(msg);
                 }
+                if (status === 401) {
+                    throw new Error('夸克登录失效，请更新 Cookie');
+                }
+                if (status === 403 || status === 40001) {
+                    if (/提取码|访问码|口令|密码/.test(message)) {
+                        throw new Error('夸克分享提取码错误或已失效');
+                    }
+                    if (/分享已取消|分享不存在|链接不存在|失效|不存在|无效|被取消/.test(message)) {
+                        throw new Error('夸克分享链接已失效或被取消');
+                    }
+                    if (/封禁|受限|违规|风控|黑名单/.test(message)) {
+                        throw new Error(message || '分享者用户封禁链接查看受限');
+                    }
+                    throw new Error(message || '夸克分享链接已失效或被取消');
+                }
+                lastError = message || lastError;
             } catch (e: any) {
-                if (e.message.includes('提取码') || e.message.includes('失效')) throw e;
+                const status = e?.response?.status;
+                const responseStatus = e?.response?.data?.status;
+                const responseMessage = e?.response?.data?.message || e?.response?.data?.error || '';
+                if (status === 401) {
+                    throw new Error('夸克登录失效，请更新 Cookie');
+                }
+                if (status === 403 || responseStatus === 40001) {
+                    if (/提取码|访问码|口令|密码/.test(responseMessage)) {
+                        throw new Error('夸克分享提取码错误或已失效');
+                    }
+                    if (/分享已取消|分享不存在|链接不存在|失效|不存在|无效|被取消/.test(responseMessage)) {
+                        throw new Error('夸克分享链接已失效或被取消');
+                    }
+                    if (/封禁|受限|违规|风控|黑名单/.test(responseMessage)) {
+                        throw new Error(responseMessage || '分享者用户封禁链接查看受限');
+                    }
+                    throw new Error(responseMessage || '夸克分享链接已失效或被取消');
+                }
+                const message = e?.message || '';
+                if (/提取码|访问码|口令|密码|失效|不存在|无效|取消|Cookie|登录失效|分享/.test(message)) {
+                    throw e;
+                }
+                lastError = responseMessage || message || lastError;
                 logger.warn('[CloudStorageService] Failed to fetch Quark stoken', { domain, error: e });
             }
         }
-        throw new Error('获取夸克分享 Token 失败，请检查提取码或 Cookie');
+        if (/提取码|访问码|口令|密码/.test(lastError)) {
+            throw new Error('夸克分享提取码错误或已失效');
+        }
+        if (/分享已取消|分享不存在|链接不存在|失效|不存在|无效|被取消/.test(lastError)) {
+            throw new Error('夸克分享链接已失效或被取消');
+        }
+        throw new Error(lastError || '获取夸克分享 Token 失败');
     }
 
     /**
@@ -395,7 +439,7 @@ export class CloudStorageService {
             try {
                 stoken = await this.getQuarkStoken(cookie, shareId, passCode);
             } catch (e: any) {
-                const isUserError = e.message.includes('提取码') || e.message.includes('失效') || e.message.includes('不存在');
+                const isUserError = /提取码|失效|不存在|封禁|受限|违规|风控|黑名单/.test(e.message);
                 return { 
                     success: false, 
                     message: e.message, 

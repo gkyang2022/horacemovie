@@ -107,12 +107,6 @@ service.interceptors.response.use(
     if (errorCode === 'PANSOU_NOT_CONFIGURED') {
       displayMsg = '未配置盘搜 API，请在设置页填写 pansou_url';
     }
-    if (
-      requestUrl.includes('/transfer/save') &&
-      (errorMsg.includes('夸克分享 Token 失败') || errorMsg.includes('stoken') || errorMsg.includes('sharepage/token'))
-    ) {
-      displayMsg = '夸克分享链接已失效或被取消，请确认提取码并重新获取分享链接';
-    }
     console.error(`[API Response Error] ${requestUrl}:`, errorMsg);
     if (!skipErrorMessage) {
       ElMessage.error(displayMsg);

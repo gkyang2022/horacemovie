@@ -9,7 +9,7 @@ export const searchPansou = (q: string, refresh?: boolean) => request.get<any, a
 } as any);
 
 export const saveToCloud = (data: { shareUrl: string, type: string, mediaName: string }) => 
-  request.post<any, { message: string }>('/transfer/save', data);
+  request.post<any, { message: string }>('/transfer/save', data, { skipErrorMessage: true } as any);
 
 export const syncToNas = (data: { srcDir: string, names: string[], dstDir?: string }) => 
   request.post('/transfer/sync', data);

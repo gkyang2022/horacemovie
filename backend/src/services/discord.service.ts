@@ -411,7 +411,7 @@ export class DiscordService {
         );
         const settings: any = {};
         settingsRows.forEach(row => {
-            settings[row.key] = row.value;
+            settings[row.key] = decryptSettingValue(row.key, row.value);
         });
 
         const cookie = settings[cookieKey];

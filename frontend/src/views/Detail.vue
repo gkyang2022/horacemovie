@@ -75,7 +75,10 @@
       <template #header>
         <div class="resource-dialog-header">
           <span class="resource-dialog-title">资源搜索结果</span>
-          <el-button class="resource-refresh-button" :icon="Refresh" circle size="small" :loading="searchLoading" :disabled="!detail" @click="handleRefreshResource" />
+          <div class="resource-dialog-actions">
+            <el-button class="resource-modify-btn" :icon="Edit" circle size="small" @click="handleModifyKeyword" title="修改关键词" />
+            <el-button class="resource-refresh-button" :icon="Refresh" circle size="small" :loading="searchLoading" :disabled="!detail" @click="handleRefreshResource" />
+          </div>
         </div>
       </template>
       <el-tabs v-model="activeTab" class="resource-tabs">
@@ -114,6 +117,23 @@
       </el-tabs>
     </el-dialog>
 
+    <!-- 修改关键词对话框 -->
+    <el-dialog v-model="modifyKeywordDialog" title="修改搜索关键词" width="400px">
+      <el-form :model="modifyKeywordForm" label-width="80px">
+        <el-form-item label="关键词">
+          <el-input 
+            v-model="modifyKeywordForm.keyword" 
+            placeholder="请输入资源名称"
+            clearable
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="modifyKeywordDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmModifyKeyword" :loading="searchLoading">搜索</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 追剧设置对话框 -->
     <el-dialog v-model="trackerConfigDialog" title="是否开启追剧（资源追踪）？" width="400px">
       <div style="margin-bottom: 20px; color: var(--app-text-muted); font-size: 14px;">
@@ -146,7 +166,7 @@ import { getDetail, type DoubanMedia } from '../api/douban';
 import { searchPansou, saveToCloud } from '../api/system';
 import request from '../api/request';
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
-import { Refresh } from '@element-plus/icons-vue';
+import { Refresh, Edit } from '@element-plus/icons-vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -157,6 +177,12 @@ const resourceDialog = ref(false);
 const searchLoading = ref(false);
 const resources = ref<any[]>([]);
 const activeTab = ref('115');
+
+// 修改关键词相关状态
+const modifyKeywordDialog = ref(false);
+const modifyKeywordForm = ref({
+  keyword: ''
+});
 
 // 追剧相关状态
 const trackerConfigDialog = ref(false);
@@ -271,6 +297,41 @@ const handleSearchResource = async () => {
 
 const handleRefreshResource = async () => {
   await executeResourceSearch(true);
+};
+
+const handleModifyKeyword = () => {
+  modifyKeywordForm.value.keyword = detail.value?.title || '';
+  modifyKeywordDialog.value = true;
+};
+
+const confirmModifyKeyword = async () => {
+  const keyword = modifyKeywordForm.value.keyword?.trim();
+  if (!keyword) {
+    ElMessage.warning('请输入搜索关键词');
+    return;
+  }
+  
+  modifyKeywordDialog.value = false;
+  resourceDialog.value = true;
+  searchLoading.value = true;
+  resources.value = [];
+  
+  try {
+    const data = await searchPansou(keyword, false);
+    resources.value = (data as any[]).map(item => ({
+      ...item,
+      type: getCloudTypeFromResource(item)
+    }));
+    if (data.length === 0) {
+      ElMessage.warning('未找到相关网盘资源');
+    }
+  } catch (error: any) {
+    console.error('Pansou search failed:', error);
+    const errorMsg = error?.response?.data?.error || error?.message || '搜索失败';
+    ElMessage.error(errorMsg);
+  } finally {
+    searchLoading.value = false;
+  }
 };
 
 const confirmCreateTracker = async () => {
@@ -502,7 +563,19 @@ onMounted(() => {
 .resource-dialog-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  flex: 1;
+}
+
+.resource-dialog-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.resource-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .resource-dialog-title {

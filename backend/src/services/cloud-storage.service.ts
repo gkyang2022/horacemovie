@@ -502,7 +502,10 @@ export class CloudStorageService {
             const attemptSave = async (files: QuarkFile[], groupPdirFid: string, destinationFid: string): Promise<TransferResult> => {
                 const fidList = files.map(f => f.id);
                 const fidTokenList = files.map(f => f.share_fid_token);
-                const names = files.map(f => f.name);
+                const names = files.map(f => {
+                    const pathParts = resolveSharePath(f.pid || pdirFid);
+                    return pathParts.length > 0 ? `${pathParts.join('/')}/${f.name}` : f.name;
+                });
                 const effectivePdirFid = groupPdirFid || pdirFid || '0';
 
                 const saveParams = {

@@ -101,41 +101,74 @@ export class OpenListService {
             return { error: '未找到可复制的文件' };
         }
 
-        try {
-            logger.debug('[OpenListService] Pre-listing directory with refresh', { srcDir, delayMs: 3000 });
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            await this.listFiles(srcDir, true).catch(e => logger.warn('[OpenListService] Pre-list failed', { srcDir, error: e }));
-
-            logger.info('[OpenListService] Copying items', { count: finalNames.length, srcDir, targetDir });
-            const response = await axios.post(`${baseUrl}/api/fs/copy`, {
-                src_dir: srcDir,
-                dst_dir: targetDir,
-                names: finalNames
-            }, {
-                headers: {
-                    'Authorization': token
-                },
-                timeout: 30000
-            });
-
-            if (response.data && response.data.code !== 200) {
-                const errMsg = response.data.message || '未知错误';
-                logger.warn('[OpenListService] Copy failed', { message: errMsg });
-                return { error: errMsg };
+        // 按目录分组文件（处理子目录情况）
+        const filesByDir = new Map<string, string[]>();
+        for (const fullName of finalNames) {
+            const slashIndex = fullName.lastIndexOf('/');
+            if (slashIndex > 0) {
+                const subDir = fullName.substring(0, slashIndex);
+                const fileName = fullName.substring(slashIndex + 1);
+                const key = `${srcDir}/${subDir}`;
+                const list = filesByDir.get(key);
+                if (list) {
+                    list.push(fileName);
+                } else {
+                    filesByDir.set(key, [fileName]);
+                }
+            } else {
+                const list = filesByDir.get(srcDir);
+                if (list) {
+                    list.push(fullName);
+                } else {
+                    filesByDir.set(srcDir, [fullName]);
+                }
             }
-
-            // 处理新的返回结构: data.tasks[0].id
-            const taskId = response.data?.data?.tasks?.[0]?.id || response.data?.data?.task_id;
-            if (!taskId) {
-                return { error: 'OpenList 未返回任务 ID' };
-            }
-
-            return { taskId };
-        } catch (error: any) {
-            const errMsg = error.response?.data?.message || error.message;
-            logger.error('[OpenListService] Copy error', { error: errMsg });
-            return { error: errMsg };
         }
+
+        let allTaskIds: string[] = [];
+        let lastError: string | undefined;
+
+        for (const [effectiveSrcDir, dirNames] of filesByDir.entries()) {
+            try {
+                logger.debug('[OpenListService] Pre-listing directory with refresh', { srcDir: effectiveSrcDir, delayMs: 3000 });
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                await this.listFiles(effectiveSrcDir, true).catch(e => logger.warn('[OpenListService] Pre-list failed', { srcDir: effectiveSrcDir, error: e }));
+
+                logger.info('[OpenListService] Copying items', { count: dirNames.length, srcDir: effectiveSrcDir, targetDir });
+                const response = await axios.post(`${baseUrl}/api/fs/copy`, {
+                    src_dir: effectiveSrcDir,
+                    dst_dir: targetDir,
+                    names: dirNames
+                }, {
+                    headers: {
+                        'Authorization': token
+                    },
+                    timeout: 30000
+                });
+
+                if (response.data && response.data.code !== 200) {
+                    const errMsg = response.data.message || '未知错误';
+                    logger.warn('[OpenListService] Copy failed', { message: errMsg });
+                    lastError = errMsg;
+                    continue;
+                }
+
+                const taskId = response.data?.data?.tasks?.[0]?.id || response.data?.data?.task_id;
+                if (taskId) {
+                    allTaskIds.push(taskId);
+                }
+            } catch (error: any) {
+                const errMsg = error.response?.data?.message || error.message;
+                logger.error('[OpenListService] Copy error', { error: errMsg });
+                lastError = errMsg;
+            }
+        }
+
+        if (allTaskIds.length === 0) {
+            return { error: lastError || '所有同步任务均失败' };
+        }
+
+        return { taskId: allTaskIds[0] };
     }
 
     async getTasks(type: 'undone' | 'done'): Promise<any[]> {

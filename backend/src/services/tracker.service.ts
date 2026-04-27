@@ -171,8 +171,14 @@ export class TrackerService {
                                 .catch(err => logger.error('[TrackerService] Auto-sync error', { error: err }));
                         }
 
-                        await TelegramService.getInstance().notify(`追剧成功: ${task.name} 发现 ${newFiles.length} 个新内容，已转存到 ${type}`);
-                        await DiscordService.getInstance().notify(`追剧成功: ${task.name} 发现 ${newFiles.length} 个新内容，已转存到 ${type}`);
+                        // 构建新内容文件名列表
+                        const fileNames = transferRes.names || [];
+                        const filesText = fileNames.length > 0 
+                            ? `（${fileNames.join(' | ')}）`
+                            : '';
+
+                        await TelegramService.getInstance().notify(`追剧成功：${task.name} 发现 ${newFiles.length} 个新内容${filesText}，已转存到 ${type}`);
+                        await DiscordService.getInstance().notify(`追剧成功：${task.name} 发现 ${newFiles.length} 个新内容${filesText}，已转存到 ${type}`);
                         const successMessage = transferRes.message
                             ? `${transferRes.message}，共${topLevelNewFiles.length}项`
                             : `已转存${topLevelNewFiles.length}项`;

@@ -134,10 +134,17 @@ export class OpenListService {
                 await new Promise(resolve => setTimeout(resolve, 3000));
                 await this.listFiles(effectiveSrcDir, true).catch(e => logger.warn('[OpenListService] Pre-list failed', { srcDir: effectiveSrcDir, error: e }));
 
-                logger.info('[OpenListService] Copying items', { count: dirNames.length, srcDir: effectiveSrcDir, targetDir });
+                // 计算子目录路径，并在目标路径中也添加相同的子目录
+                let effectiveDstDir = targetDir;
+                if (effectiveSrcDir.startsWith(srcDir) && effectiveSrcDir.length > srcDir.length) {
+                    const subPath = effectiveSrcDir.substring(srcDir.length);
+                    effectiveDstDir = `${targetDir}${subPath}`;
+                }
+
+                logger.info('[OpenListService] Copying items', { count: dirNames.length, srcDir: effectiveSrcDir, dstDir: effectiveDstDir });
                 const response = await axios.post(`${baseUrl}/api/fs/copy`, {
                     src_dir: effectiveSrcDir,
-                    dst_dir: targetDir,
+                    dst_dir: effectiveDstDir,
                     names: dirNames
                 }, {
                     headers: {

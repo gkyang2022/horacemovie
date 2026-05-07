@@ -76,6 +76,23 @@ export class TrackerService {
         }
     }
 
+    private async getNotificationTargets(): Promise<string[]> {
+        const db = getDb();
+        try {
+            const row = await db.get('SELECT value FROM settings WHERE key = ?', 'notification_targets');
+            if (row?.value) {
+                const targets = JSON.parse(row.value);
+                if (Array.isArray(targets)) {
+                    return targets;
+                }
+            }
+        } catch (error: any) {
+            logger.error('[TrackerService] Failed to parse notification_targets', { error });
+        }
+        // 默认值
+        return ['telegram_chat', 'discord_channel'];
+    }
+
     async executeTask(task: any) {
         logger.info('[TrackerService] Executing task logic', { taskName: task.name, mode: 'link-tracking' });
         const db = getDb();
@@ -177,8 +194,22 @@ export class TrackerService {
                             ? `（${fileNames.join(' | ')}）`
                             : '';
 
-                        await TelegramService.getInstance().notify(`追剧成功：${task.name} 发现 ${newFiles.length} 个新内容${filesText}，已转存到 ${type}`);
-                        await DiscordService.getInstance().notify(`追剧成功：${task.name} 发现 ${newFiles.length} 个新内容${filesText}，已转存到 ${type}`);
+                        // 获取通知目标配置
+                        const notificationTargets = await this.getNotificationTargets();
+
+                        // 根据配置发送通知
+                        if (notificationTargets.includes('telegram_chat')) {
+                            await TelegramService.getInstance().notify(`追剧成功：${task.name} 发现 ${newFiles.length} 个新内容${filesText}，已转存到 ${type}`);
+                        }
+                        if (notificationTargets.includes('telegram_user')) {
+                            await TelegramService.getInstance().notifyUser(`追剧成功：${task.name} 发现 ${newFiles.length} 个新内容${filesText}，已转存到 ${type}`);
+                        }
+                        if (notificationTargets.includes('discord_channel')) {
+                            await DiscordService.getInstance().notify(`追剧成功：${task.name} 发现 ${newFiles.length} 个新内容${filesText}，已转存到 ${type}`);
+                        }
+                        if (notificationTargets.includes('discord_user')) {
+                            await DiscordService.getInstance().notifyUser(`追剧成功：${task.name} 发现 ${newFiles.length} 个新内容${filesText}，已转存到 ${type}`);
+                        }
                         const successMessage = transferRes.message
                             ? `${transferRes.message}，共${topLevelNewFiles.length}项`
                             : `已转存${topLevelNewFiles.length}项`;

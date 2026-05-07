@@ -198,18 +198,21 @@ export class TrackerService {
                         const notificationTargets = await this.getNotificationTargets();
 
                         // 根据配置发送通知
+                        const message = `追剧成功：${task.name} 发现 ${newFiles.length} 个新内容${filesText}，已转存到 ${type}`;
+                        const notifications: Promise<void>[] = [];
                         if (notificationTargets.includes('telegram_chat')) {
-                            await TelegramService.getInstance().notify(`追剧成功：${task.name} 发现 ${newFiles.length} 个新内容${filesText}，已转存到 ${type}`);
+                            notifications.push(TelegramService.getInstance().notify(message));
                         }
                         if (notificationTargets.includes('telegram_user')) {
-                            await TelegramService.getInstance().notifyUser(`追剧成功：${task.name} 发现 ${newFiles.length} 个新内容${filesText}，已转存到 ${type}`);
+                            notifications.push(TelegramService.getInstance().notifyUser(message));
                         }
                         if (notificationTargets.includes('discord_channel')) {
-                            await DiscordService.getInstance().notify(`追剧成功：${task.name} 发现 ${newFiles.length} 个新内容${filesText}，已转存到 ${type}`);
+                            notifications.push(DiscordService.getInstance().notify(message));
                         }
                         if (notificationTargets.includes('discord_user')) {
-                            await DiscordService.getInstance().notifyUser(`追剧成功：${task.name} 发现 ${newFiles.length} 个新内容${filesText}，已转存到 ${type}`);
+                            notifications.push(DiscordService.getInstance().notifyUser(message));
                         }
+                        await Promise.allSettled(notifications);
                         const successMessage = transferRes.message
                             ? `${transferRes.message}，共${topLevelNewFiles.length}项`
                             : `已转存${topLevelNewFiles.length}项`;

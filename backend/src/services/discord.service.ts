@@ -203,6 +203,25 @@ export class DiscordService {
         }
     }
 
+    public async notifyUser(message: string) {
+        if (!this.client) return;
+        const { userIds } = await this.getDiscordConfig();
+        if (userIds.length === 0) {
+            logger.warn('[DiscordService] discord_user_ids not configured, cannot send user notification');
+            return;
+        }
+        for (const userId of userIds) {
+            try {
+                const user = await this.client.users.fetch(userId);
+                if (user) {
+                    await user.send(message);
+                }
+            } catch (error: any) {
+                logger.error('[DiscordService] Notify user failed', { error });
+            }
+        }
+    }
+
     private getSearchKey(channelId: string, userId: string) {
         return `${channelId}:${userId}`;
     }
@@ -621,8 +640,8 @@ export class DiscordService {
             settings[row.key] = decryptSettingValue(row.key, row.value);
         });
         return {
-            channelIds: this.parseIdList(settings.discord_channel_ids),
-            userIds: this.parseIdList(settings.discord_user_ids)
+            channelIds: Array.from(new Set(this.parseIdList(settings.discord_channel_ids))),
+            userIds: Array.from(new Set(this.parseIdList(settings.discord_user_ids)))
         };
     }
 }

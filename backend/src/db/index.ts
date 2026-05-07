@@ -271,6 +271,16 @@ export async function initDb() {
         }
     }
 
+    const notificationTargetsFixed = await db.get('SELECT value FROM settings WHERE key = "notification_targets"');
+    if (!notificationTargetsFixed) {
+        logger.info('[Db] Setting default notification_targets');
+        await db.run(
+            'INSERT INTO settings (key, value) VALUES (?, ?)',
+            'notification_targets',
+            JSON.stringify(['telegram_chat', 'discord_channel'])
+        );
+    }
+
     const users = await db.all('SELECT id, password, api_token, token_expires_at FROM users');
     for (const user of users) {
         if (user.password && typeof user.password === 'string' && !user.password.startsWith('scrypt$')) {

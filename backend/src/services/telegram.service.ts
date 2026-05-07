@@ -670,6 +670,24 @@ export class TelegramService {
         }
     }
 
+    public async notifyUser(message: string) {
+        if (this.bot) {
+            try {
+                const { userIds } = await this.getTelegramConfig();
+                if (userIds.length > 0) {
+                    logger.info('[TelegramService] Sending Telegram user notification', { count: userIds.length, length: message.length });
+                    for (const userId of userIds) {
+                        this.bot.telegram.sendMessage(userId, message).catch(err => logger.error('[TelegramService] Notify user failed', { error: err }));
+                    }
+                } else {
+                    logger.warn('[TelegramService] telegram_user_ids not configured, cannot send user notification');
+                }
+            } catch (error: any) {
+                logger.error('[TelegramService] Failed to fetch user_id for notification', { error });
+            }
+        }
+    }
+
     private parseIdList(value?: string | null) {
         if (!value) return [];
         return value

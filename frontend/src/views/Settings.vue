@@ -74,6 +74,15 @@
         <el-form-item label="User IDs">
           <el-input v-model="form.discord_user_ids" placeholder="多个用逗号/空格/换行分隔，留空则允许所有用户使用命令" />
         </el-form-item>
+        <el-divider content-position="left">通知目标配置</el-divider>
+        <el-form-item label="通知目标">
+          <el-checkbox-group v-model="form.notification_targets">
+            <el-checkbox label="telegram_chat">Telegram 群聊</el-checkbox>
+            <el-checkbox label="telegram_user">Telegram 私信</el-checkbox>
+            <el-checkbox label="discord_channel">Discord 频道</el-checkbox>
+            <el-checkbox label="discord_user">Discord 私信</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
         <el-divider content-position="left">用户管理</el-divider>
         <el-table :data="users" style="margin-bottom: 20px">
           <el-table-column prop="username" label="用户名" />
@@ -170,14 +179,23 @@ const form = reactive({
   telegram_user_ids: '',
   discord_bot_token: '',
   discord_channel_ids: '',
-  discord_user_ids: ''
+  discord_user_ids: '',
+  notification_targets: ['telegram_chat', 'discord_channel'] as string[]
 });
 
 const fetchData = async () => {
   loading.value = true;
   try {
-    const data = await getSettings();
+    const data: any = await getSettings();
     Object.assign(form, data);
+    // 解析 notification_targets JSON
+    if (data.notification_targets && typeof data.notification_targets === 'string') {
+      try {
+        form.notification_targets = JSON.parse(data.notification_targets);
+      } catch {
+        form.notification_targets = ['telegram_chat', 'discord_channel'];
+      }
+    }
     if (isAdmin.value) {
       fetchUsers();
     }
@@ -227,7 +245,8 @@ const handleSave = async () => {
       openlist_path_115: form.openlist_path_115,
       cookie_quark: form.cookie_quark,
       folder_id_quark: form.folder_id_quark,
-      openlist_path_quark: form.openlist_path_quark
+      openlist_path_quark: form.openlist_path_quark,
+      notification_targets: JSON.stringify(form.notification_targets)
     });
   } catch (error: any) {
     saveErrorMessage = error.response?.data?.error || '配置保存失败';

@@ -711,7 +711,7 @@ export class TelegramService {
 
         return {
             chatIds: Array.from(chatIds),
-            userIds: this.parseIdList(settings.telegram_user_ids)
+            userIds: Array.from(new Set(this.parseIdList(settings.telegram_user_ids)))
         };
     }
 }

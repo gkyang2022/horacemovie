@@ -7,7 +7,9 @@
     "start": "node dist/index.js",
     "dev": "nodemon --watch src --ext ts --signal SIGTERM --exec tsx src/index.ts",
     "build": "tsc",
-    "gen:keys": "node -e \"const crypto=require('crypto');const a=crypto.randomBytes(32).toString('hex');const b=crypto.randomBytes(32).toString('hex');console.log('ENCRYPTION_KEY='+a);console.log('TOKEN_SECRET='+b);\""
+    "gen:keys": "node -e \"const crypto=require('crypto');const a=crypto.randomBytes(32).toString('hex');const b=crypto.randomBytes(32).toString('hex');console.log('ENCRYPTION_KEY='+a);console.log('TOKEN_SECRET='+b);\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -37,6 +39,7 @@
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.5"
   }
 }

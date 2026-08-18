@@ -12,8 +12,8 @@ services:
       NODE_ENV: production
       PORT: "8008"
       DB_PATH: /app/data/horacemovie.db
-      ENCRYPTION_KEY: YOUR_ENCRYPTION_KEY
-      TOKEN_SECRET: YOUR_TOKEN_SECRET
+      ENCRYPTION_KEY: a8f7c9e2b1d4f6a3
+      TOKEN_SECRET: k9m2p5w8x3z7q1v4
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:8008/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s

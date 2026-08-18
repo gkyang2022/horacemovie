@@ -1,17 +1,19 @@
+version: '3.8'
+
 services:
   backend:
-    image: leaosunday/horacemovie-backend:latest
+    build: ./backend
     container_name: horacemovie-backend
     ports:
-      - "8008:8008" # 后端端口，不想暴露可以注释掉
+      - "8008:8008"
     volumes:
       - ./backend/data:/app/data
     environment:
       NODE_ENV: production
       PORT: "8008"
       DB_PATH: /app/data/horacemovie.db
-      ENCRYPTION_KEY: YOUR_ENCRYPTION_KEY # 加密密钥，必填
-      TOKEN_SECRET: YOUR_TOKEN_SECRET # Token 密钥，必填
+      ENCRYPTION_KEY: YOUR_ENCRYPTION_KEY
+      TOKEN_SECRET: YOUR_TOKEN_SECRET
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:8008/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
@@ -20,10 +22,10 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: leaosunday/horacemovie-frontend:latest
+    build: ./frontend
     container_name: horacemovie-frontend
     ports:
-      - "8080:80" # 前端端口
+      - "8080:80"
     depends_on:
       backend:
         condition: service_healthy

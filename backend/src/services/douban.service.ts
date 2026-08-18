@@ -56,21 +56,23 @@ export class DoubanService {
     private getProxyPoster(url: string): string {
         if (!url) return '';
 
-        // images.weserv.nl is a public Cloudflare-backed image proxy & CDN accelerator.
-        // Format: https://images.weserv.nl/?url=<full-encoded-original-url>
-        //         or: https://images.weserv.nl/<path-without-domain>  (preferred, cleaner URLs)
-        // We use the path-only format for better cache performance.
+        // Default IMAGE_PROXY_BASE is Douban's own image CDN (https://img.doubanio.com/),
+        // so poster URLs are direct Douban CDN links (no third-party dependency, works from
+        // both public internet and NAS). The frontend request interceptor passes these
+        // straight through to <img> tags.
+        // If IMAGE_PROXY_BASE is overridden with a proxy that needs a different URL format,
+        // adjust this method accordingly.
 
         let processedUrl = url;
         // Handle doubanio domains (img.doubanio.com, img9.doubanio.com, qnmob3.doubanio.com etc)
         if (url.includes('doubanio.com')) {
             // Replace any sub-domain of doubanio.com, keeping the path.
             // e.g. https://img1.doubanio.com/view/photo/raw/public/p123.jpg
-            //      → https://images.weserv.nl/view/photo/raw/public/p123.jpg
+            //      → https://img.doubanio.com/view/photo/raw/public/p123.jpg
             processedUrl = url.replace(/^https?:\/\/[^/]*doubanio\.com\//, this.imageProxy);
         } else {
             // Fallback for other domains: strip the protocol and domain prefix.
-            // e.g. https://example.com/path/img.jpg → https://images.weserv.nl/path/img.jpg
+            // e.g. https://example.com/path/img.jpg → https://img.doubanio.com/path/img.jpg
             processedUrl = url.replace(/^https?:\/\/[^/]+\//, this.imageProxy);
         }
 

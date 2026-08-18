@@ -50,13 +50,12 @@ const refreshTokenIfNeeded = async () => {
   await refreshPromise;
 };
 
-// 递归遍历对象或数组，把豆瓣图片链接自动替换为后端代理
+// 递归遍历对象或数组，把豆瓣图片链接统一为可直连的 CDN 链接
+// 注意：后端 douban.service 已把 poster 统一为豆瓣图床直链（默认 https://img.doubanio.com/），
+// 这里不再改写成 /api/douban/image-proxy（该接口需要认证，<img> 标签请求不带 token 会 401）。
 function replaceImageUrl(data: any): any {
   if (!data) return data;
   if (typeof data === 'string') {
-    if (data.includes('doubanio.com') && !data.includes('/image-proxy')) {
-      return `/api/douban/image-proxy?url=${encodeURIComponent(data)}`;
-    }
     return data;
   }
   if (Array.isArray(data)) {

@@ -42,7 +42,11 @@ export class DoubanService {
     private cache: NodeCache;
 
     private constructor() {
-        this.imageProxy = process.env.IMAGE_PROXY_BASE || 'https://images.weserv.nl/'; // images.weserv.nl = public Cloudflare-backed image proxy & accelerator
+        // 默认不替换域名：豆瓣 API 返回的 poster 本来就是 img*.doubanio.com 可直连 CDN 链接
+        // （img1/2/3/9.doubanio.com 均有 DNS，实测可达；img.doubanio.com 无 DNS 记录）。
+        // 仅当显式设置 IMAGE_PROXY_BASE 时才做域名替换（如自建反代）。
+        // 之前的第三方代理 img.doubanio.cmliussss.com / images.weserv.nl 均已失效。
+        this.imageProxy = process.env.IMAGE_PROXY_BASE || '';
         this.cache = new NodeCache({ stdTTL: CACHE_TTL, checkperiod: 600 });
     }
 
@@ -56,23 +60,24 @@ export class DoubanService {
     private getProxyPoster(url: string): string {
         if (!url) return '';
 
-        // Default IMAGE_PROXY_BASE is Douban's own image CDN (https://img.doubanio.com/),
-        // so poster URLs are direct Douban CDN links (no third-party dependency, works from
-        // both public internet and NAS). The frontend request interceptor passes these
-        // straight through to <img> tags.
-        // If IMAGE_PROXY_BASE is overridden with a proxy that needs a different URL format,
-        // adjust this method accordingly.
+        // 默认 IMAGE_PROXY_BASE 为空 → 返回豆瓣原始 CDN 直链（img*.doubanio.com），
+        // 无需任何第三方代理，浏览器/NAS 均可直连。
+        // 若设置了 IMAGE_PROXY_BASE（如自建反代），则把域名前缀替换为该地址。
+
+        if (!this.imageProxy) {
+            return url;
+        }
 
         let processedUrl = url;
         // Handle doubanio domains (img.doubanio.com, img9.doubanio.com, qnmob3.doubanio.com etc)
         if (url.includes('doubanio.com')) {
             // Replace any sub-domain of doubanio.com, keeping the path.
             // e.g. https://img1.doubanio.com/view/photo/raw/public/p123.jpg
-            //      → https://img.doubanio.com/view/photo/raw/public/p123.jpg
+            //      → https://<IMAGE_PROXY_BASE>/view/photo/raw/public/p123.jpg
             processedUrl = url.replace(/^https?:\/\/[^/]*doubanio\.com\//, this.imageProxy);
         } else {
             // Fallback for other domains: strip the protocol and domain prefix.
-            // e.g. https://example.com/path/img.jpg → https://img.doubanio.com/path/img.jpg
+            // e.g. https://example.com/path/img.jpg → https://<IMAGE_PROXY_BASE>/path/img.jpg
             processedUrl = url.replace(/^https?:\/\/[^/]+\//, this.imageProxy);
         }
 

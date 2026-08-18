@@ -42,7 +42,7 @@ export class DoubanService {
     private cache: NodeCache;
 
     private constructor() {
-        this.imageProxy = process.env.IMAGE_PROXY_BASE || 'https://img.doubanio.cmliussss.com/';
+        this.imageProxy = process.env.IMAGE_PROXY_BASE || 'https://images.weserv.nl/'; // images.weserv.nl = public Cloudflare-backed image proxy & accelerator
         this.cache = new NodeCache({ stdTTL: CACHE_TTL, checkperiod: 600 });
     }
 
@@ -55,24 +55,26 @@ export class DoubanService {
 
     private getProxyPoster(url: string): string {
         if (!url) return '';
-        
-        // The user wants cmliussss source. 
-        // Based on typical worker proxies for douban:
-        // We replace the douban domain with the proxy domain.
-        
+
+        // images.weserv.nl is a public Cloudflare-backed image proxy & CDN accelerator.
+        // Format: https://images.weserv.nl/?url=<full-encoded-original-url>
+        //         or: https://images.weserv.nl/<path-without-domain>  (preferred, cleaner URLs)
+        // We use the path-only format for better cache performance.
+
         let processedUrl = url;
         // Handle doubanio domains (img.doubanio.com, img9.doubanio.com, qnmob3.doubanio.com etc)
         if (url.includes('doubanio.com')) {
-            // Replace any sub-domain of doubanio.com with the proxy
-            // Regex matches: https://(anything).doubanio.com/
+            // Replace any sub-domain of doubanio.com, keeping the path.
+            // e.g. https://img1.doubanio.com/view/photo/raw/public/p123.jpg
+            //      → https://images.weserv.nl/view/photo/raw/public/p123.jpg
             processedUrl = url.replace(/^https?:\/\/[^/]*doubanio\.com\//, this.imageProxy);
         } else {
-            // Fallback for other URLs
-            const cleanUrl = url.replace(/^https?:\/\//, '');
-            processedUrl = `${this.imageProxy}${cleanUrl}`;
+            // Fallback for other domains: strip the protocol and domain prefix.
+            // e.g. https://example.com/path/img.jpg → https://images.weserv.nl/path/img.jpg
+            processedUrl = url.replace(/^https?:\/\/[^/]+\//, this.imageProxy);
         }
 
-        // Clean up double slashes if any (except https://)
+        // Clean up any leftover double slashes (except after the protocol https://)
         return processedUrl.replace(/([^:])\/\//g, '$1/');
     }
 
@@ -378,7 +380,7 @@ export class DoubanService {
                     limit: count,
                     category: category || kind,
                     type: type || undefined,
-                    ck: 'Gg7r' // 使用用户提供的 ck 值
+                    ck: process.env.DOUBAN_CK || 'Gg7r' // 可通过 DOUBAN_CK 环境变量覆盖
                 },
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/04.1',

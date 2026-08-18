@@ -50,6 +50,26 @@ const refreshTokenIfNeeded = async () => {
   await refreshPromise;
 };
 
+// 递归遍历对象或数组，把豆瓣图片链接自动替换为后端代理
+function replaceImageUrl(data: any): any {
+  if (!data) return data;
+  if (typeof data === 'string') {
+    if (data.includes('doubanio.com') && !data.includes('/image-proxy')) {
+      return `/api/douban/image-proxy?url=${encodeURIComponent(data)}`;
+    }
+    return data;
+  }
+  if (Array.isArray(data)) {
+    return data.map(item => replaceImageUrl(item));
+  }
+  if (typeof data === 'object') {
+    for (const key of Object.keys(data)) {
+      data[key] = replaceImageUrl(data[key]);
+    }
+  }
+  return data;
+}
+
 service.interceptors.request.use(
   async (config) => {
     const requestUrl = config.url || '';
@@ -87,6 +107,9 @@ service.interceptors.request.use(
 
 service.interceptors.response.use(
   (response) => {
+    // 自动将返回结果中的豆瓣图片链接替换为代理
+    response.data = replaceImageUrl(response.data);
+
     if (import.meta.env.DEV) {
       console.log(`[API Response] ${response.config.url}`, response.data);
     }
